@@ -19,6 +19,49 @@ Bu liste, [özgün ADR](reference/architecture-decisions-2026-10-31.md) ve üst 
 | İleri döngüler | Doğrulama tekrar sınırı, MCTS skor formülü, FSM hata geçişleri ve ambient kaynak sınırları | 4–5+ |
 | Dağıtım | Rust araç zinciri, ferrocord sürümleme, hedef platformlar, CI matrisi ve yayın onayı | İlgili faz |
 
+## Marketplace fikirleri — karar bekliyor
+
+Bu bölüm, eklentilerin keşfi ve dağıtımı hakkında tartışılan fikirleri kaydeder. Marketplace'in geliştirilmesi, kapsamı, takvimi ve dağıtım biçimi açık kararlardır. Aşağıdaki seçenekler değerlendirme içindir; uygulama taahhüdü içermez.
+
+### Olası kapsam ve aşamalar
+
+- Git üzerinde JSON/TOML manifestleri, açıklamalar ve kurulum belgeleri tutan küçük bir eklenti kataloğuyla başlanabilir.
+- İhtiyaç oluşursa CLI üzerinden arama, ayrıntı görüntüleme, kullanıcı onaylı kurulum, sürüm sabitleme, güncelleme ve kaldırma eklenebilir.
+- Katalog büyüdüğünde arama, kategori, uyumluluk ve izin bilgileri sunan bir web arayüzü değerlendirilebilir.
+- Düzenli üçüncü taraf katkısı ve kullanıcı talebi oluşursa yayıncı hesapları, inceleme, raporlama ve ücretlendirme seçenekleri ele alınabilir. Talep ve ticari karşılık henüz doğrulanmadı.
+
+Bu sıralama olası bir ilerleme yoludur; yol haritasındaki fazlara atanmış değildir. İlk katalog için özel sunucu, hesap sistemi ve veritabanı gereksinimi ayrıca değerlendirilebilir.
+
+### Kaldırılabilir marketplace eklentisi seçeneği
+
+Marketplace'in isteğe bağlı kurulabilen ve kaldırılabilen bir Ferrocore eklentisi olması tartışılan seçeneklerden biridir. Ürünle birlikte sunulması veya ayrı bir araç olarak dağıtılması da değerlendirmeye açıktır.
+
+Kaldırılabilir eklenti seçeneğinde şu sorumluluk ayrımı düşünülebilir:
+
+| Bileşen adayı | Olası sorumluluk |
+| --- | --- |
+| Ferrocore eklenti yönetimi | Kurulu eklentileri takip etme, izinleri uygulama, etkinleştirme, devre dışı bırakma ve kaldırma |
+| Marketplace eklentisi | Katalogda arama, ayrıntıları gösterme ve kurulum/güncelleme isteklerini eklenti yönetimine iletme |
+
+Bu seçenek benimsenirse aşağıdaki davranışların kararlaştırılması gerekir:
+
+- Marketplace kaldırıldığında diğer kurulu eklentilerin korunması ve çalışmayı sürdürmesi.
+- Marketplace olmadan yerel CLI üzerinden eklenti yönetimi ve marketplace'i yeniden kurma yolu.
+- Marketplace kaldırıldığında katalog tarama ve güncelleme keşfinin nasıl etkileneceği.
+- Önbellek ve kullanıcı ayarlarını temizlemenin ayrı bir kullanıcı seçimi olması.
+- Marketplace'in kendi izinlerinin, yönetim yetkilerinin ve kullanıcı onaylarının sınırları.
+
+### Güvenlik, dağıtım ve mimari soruları
+
+- Manifestte yayıncı kimliği, kaynak depo, sürüm, desteklenen Ferrocore sürümleri ve platformlar nasıl belirtilecek?
+- WASM ve dış süreç eklentilerinin ek çalışma zamanı ihtiyaçları nasıl gösterilecek?
+- Dosya sistemi, ağ, terminal ve gizli bilgilere erişim izinleri nasıl bildirilecek ve çalışma anında nasıl uygulanacak? Manifestte izin listelemek tek başına erişim denetimi sağlamaz; dış süreçlerin izolasyon sınırı ayrıca tanımlanmalıdır.
+- Sürüm sabitleme ve indirilen dosyanın bütünlük doğrulaması nasıl sağlanacak? Güvenlik açığı bulunan sürümler nasıl işaretlenecek ve kullanıcıya bildirilecek?
+- Katalog bakımı, yayıncı doğrulama ve güvenlik bildirimleri için gereken insan ve altyapı kaynakları nasıl karşılanacak?
+- Kullanıcıya dönük katalog ve kurulum deneyimi Ferrocore tarafında konumlandırılabilir. Ferrocord'un genel amaçlı servis, olay ve eklenti yaşam döngüsü sınırı korunmalıdır.
+- Birinci parti döngü modülleri ile harici MCP/WASM araçlarının dağıtım ve uyumluluk kuralları nasıl ayrılacak? Her eklenti türünün aynı yöntemle indirilebilir olması henüz tanımlanmadı.
+- Kaldırılabilir marketplace seçilirse gerekli yönetim yetkileri MCP/WASM sözleşmelerine nasıl açılacak?
+
 ## Kaynakta eksik görseller
 
 - `image1`: Sentinel çerçeve biçimi yerine yer tutucu bulunuyor.
