@@ -9,7 +9,7 @@ Kaynak: [ADR §5 ve döngü tablosu](reference/architecture-decisions-2026-10-31
 - [x] Mimari kaynakları ve yapılacakları depo içinde belgele.
 - [ ] [Açık kararları](open-questions.md) ilgili uygulama başlamadan netleştir.
 - [ ] Rust araç zinciri, asgari Rust sürümü ve desteklenecek platformları belirle.
-- [ ] ferrocord bağımlılığının sürüm/pin ve yerel geliştirme yöntemini belirle.
+- [ ] ferrocord için yayımlanmış sürüm ve yerel geliştirme yöntemini belirle; entegrasyon şimdilik `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine sabitlendi.
 
 ## Faz 1 — ferrocord v0.1.0 bağımlılığı
 
@@ -17,11 +17,13 @@ Bu faz [ferrocord deposunda](https://github.com/FerroCord/ferrocord) yürütül�
 
 - [ ] Senkron kilit ve `Arc` tabanlı Context, tip tabanlı EventBus ve Plugin sözleşmesini tamamla.
 - [ ] API ve birim testlerini kararlı hale getir.
-- [ ] ferrocore entegrasyonuna esas alınacak sürümü veya commit'i seç.
+- [x] ferrocore entegrasyonu için `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ini seç.
 
 **Geçiş ölçütü:** Servis erişimi, olay tipi izolasyonu ve yaşam döngüsü testleri geçer; `.await` boyunca senkron kilit tutulmaz. `v0.1.0` kaynakta faz hedefidir; yayınlama ayrıca kullanıcı onayı gerektirir.
 
 ## Faz 2 — ferrocore MVP: driver, PTY ve RLM
+
+Tanılama workspace'i ve `cargo run -- check` ile gerçek Context/EventBus entegrasyonu hazırdır. Windows üzerinde çalıştırıldı; Linux hedefi henüz doğrulanmadı. Bu adım Faz 2 MVP kabul ölçütlerini karşılamaz.
 
 - [ ] Yalnızca gereken crate'lerle Cargo workspace ve ana CLI iskeletini oluştur.
 - [ ] `ferrocore-types` içinde AgentLoop, Tool ve Session veri sözleşmelerini tanımla.
@@ -73,4 +75,4 @@ Kaynakta MCTS, faz tablosunda 5+, uygulama fazları bölümünde Faz 5 olarak ge
 - [ ] Ölçülmüş darboğazları, kaynak sınırlarını ve doğrulanmamış noktaları raporla.
 - [ ] Yayınlama, push, birleştirme ve silme gibi yan etkili işlemler için gerekli kullanıcı onayını al.
 
-Bu depoda henüz çalıştırılabilir build veya test paketi bulunmuyor.
+Mevcut test paketi gerçek CLI süreçlerini sınar; diğer fazların kabul ölçütleri henüz uygulanmadı.

@@ -4,7 +4,7 @@ ferrocore, [ferrocord](https://github.com/FerroCord/ferrocord) mikro-çekirdeği
 
 ## Durum
 
-31 Ekim 2026 itibarıyla depo oluşturuldu ve yerel olarak klonlandı. Bu depo mimari ve uygulama planını içerir. Rust kaynakları, Cargo manifestleri, çalışan CLI, testler ve CI henüz oluşturulmadı. Kaynak belgede kabul edilen kararlar uygulama hedefidir; tamamlanan özellikler olarak okunmamalıdır.
+Rust 2021 Cargo workspace ve gerçek ferrocord servis/olay yolunu sınayan küçük bir tanılama CLI'sı vardır. Bağımlılık `ae07423923b0934b0235d00fcd97c2bffeadd9ee` Git commit'ine sabitlenmiştir. Linux ve Windows hedeflenir; tanılama ve süreç testleri Windows üzerinde çalıştırılmıştır, Linux üzerinde henüz doğrulanmamıştır. Faz 2 MVP tamamlanmadı; LLM, PTY, sentinel ve RLM uygulanmadı. CI henüz yoktur.
 
 - Ana depo: <https://github.com/FerroCord/ferrocore>
 - Bağımsız çekirdek: <https://github.com/FerroCord/ferrocord>
@@ -35,9 +35,13 @@ Birinci parti modüller bu depoda Cargo workspace içinde geliştirilecek. Haric
 
 ## Geliştirmeye başlama
 
-İlk bağımlılık ferrocord Faz 1 sözleşmeleridir. Sonraki adım, açık protokol kararlarını netleştirip Faz 2 için gereken workspace ve modülleri oluşturmaktır. Yalnızca aktif fazın gerektirdiği modüller eklenmelidir.
+Tanılama komutu:
 
-Manifestler ve araç zinciri belirlendiğinde doğrulama adayları:
+```sh
+cargo run -- check
+```
+
+Başarılı sonuç `ferrocord integration: ok` satırıdır. Doğrulama komutları:
 
 ```sh
 cargo fmt --all -- --check
@@ -45,4 +49,4 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-Bu komutlar henüz bu depoda çalıştırılabilir bir proje üzerinde doğrulanmadı. Commit, push, yayınlama ve dağıtım bu dokümantasyon hazırlığının kapsamı dışındadır.
+Commit, push, yayınlama ve dağıtım bu çalışmanın kapsamı dışındadır.

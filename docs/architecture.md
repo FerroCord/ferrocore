@@ -2,7 +2,7 @@
 
 ## Kaynak ve karar durumu
 
-Kaynak: [31 Ekim 2026 ADR](reference/architecture-decisions-2026-10-31.md). Bu belge kabul edilen hedef mimariyi uygulanabilir başlıklara ayırır. Kaynak kod henüz bulunmuyor. Buradaki dosya ağacı, komut adları ve sözleşme adları planlanan tasarımdır; kesin Rust API imzaları belirlenmedi.
+Kaynak: [31 Ekim 2026 ADR](reference/architecture-decisions-2026-10-31.md). Bu belge kabul edilen hedef mimariyi uygulanabilir başlıklara ayırır. Mevcut Rust workspace yalnızca `ferrocore` ikilisini içerir; `ferrocord` bağımlılığı `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine sabitlenmiştir. `cargo run -- check`, Context ve EventBus entegrasyonunu sınar. Linux ve Windows hedeflenir; Windows üzerinde çalıştırıldı, Linux doğrulanmadı. Faz 2 MVP tamamlanmadı. Aşağıdaki dosya ağacı ve ajan sözleşmeleri hedef tasarımdır.
 
 ## İki katman ve depo topolojisi
 
@@ -77,7 +77,7 @@ Ana ikili `ferrocore internal-spawn` alt komutunu da çalıştırır. POSIX tasa
 
 İzinler yalnızca aktif LLM/komut yürütmesi boyunca tutulur. Ebeveyn alt ajanı beklerken iznini bırakır. Her derinlik seviyesi bağımsız eşzamanlılık kotası kullanır. Sayısal kota, azami derinlik ve aşım davranışı henüz tanımlanmadı.
 
-Ortak `AgentLoop`, çapraz döngü görevlendirmesine olanak verir. Kaynaktaki hedef kullanım örneği `spawn-agent --loop react "görev"` biçimindedir. Çalışan CLI henüz yoktur. Faz 3'te spawn altyapısı hazırlanır; RLM/ReAct birlikte çalışma doğrulaması Faz 4'te ReAct tamamlanınca yapılır.
+Ortak `AgentLoop`, çapraz döngü görevlendirmesine olanak verir. Kaynaktaki hedef kullanım örneği `spawn-agent --loop react "görev"` biçimindedir. Mevcut CLI yalnız tanılama yapar; spawn uygulanmadı. Faz 3'te spawn altyapısı hazırlanır; RLM/ReAct birlikte çalışma doğrulaması Faz 4'te ReAct tamamlanınca yapılır.
 
 ## Araç ve eklenti motoru (ADR-005)
 

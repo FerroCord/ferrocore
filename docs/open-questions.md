@@ -2,6 +2,8 @@
 
 Bu liste, [özgün ADR](reference/architecture-decisions-2026-10-31.md) ve üst çalışma rehberinde eksik bırakılan uygulama ayrıntılarını görünür kılar. Aşağıdaki test ve karar başlıkları uygulama hazırlığıdır; kesinleşmiş yeni mimari kararlar olarak değerlendirilmemelidir.
 
+Mevcut tanılama CLI'sı `cargo run -- check` ile çalıştırılır ve ferrocord `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine bağlıdır. Linux ve Windows hedeflenir; Windows üzerinde çalıştırıldı, Linux doğrulanmadı. Faz 2 MVP tamamlanmadı; aşağıdaki LLM, sentinel ve platform sözleşmeleri açık kalır.
+
 ## Uygulama öncesi sözleşmeler
 
 | Konu | Netleştirilecek ayrıntı | Etkilenen faz |

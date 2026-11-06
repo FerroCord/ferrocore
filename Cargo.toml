@@ -1,0 +1,10 @@
+[package]
+name = "ferrocore"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+resolver = "2"
+
+[dependencies]
+ferrocord = { git = "https://github.com/FerroCord/ferrocord.git", rev = "ae07423923b0934b0235d00fcd97c2bffeadd9ee" }
