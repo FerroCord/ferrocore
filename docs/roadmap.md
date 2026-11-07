@@ -23,7 +23,7 @@ Bu faz [ferrocord deposunda](https://github.com/FerroCord/ferrocord) yürütül�
 
 ## Faz 2 — ferrocore MVP: driver, PTY ve RLM
 
-Tanılama workspace'i ve `cargo run -- check` ile gerçek Context/EventBus entegrasyonu hazırdır. Windows üzerinde çalıştırıldı; Linux hedefi henüz doğrulanmadı. Bu adım Faz 2 MVP kabul ölçütlerini karşılamaz.
+Tanılama workspace'i ve `cargo run -- check` ile gerçek Context/EventBus entegrasyonu hazırdır. Windows üzerinde çalıştırıldı; Linux hedefi henüz doğrulanmadı. Bu adım Faz 2 MVP kabul ölçütlerini karşılamaz. Uygulamayı engelleyen açık sözleşmeler için [onay bekleyen Faz 2 sözleşme önerileri taslağı](phase2-contract-proposals.md) hazırlanmıştır.
 
 - [ ] Yalnızca gereken crate'lerle Cargo workspace ve ana CLI iskeletini oluştur.
 - [ ] `ferrocore-types` içinde AgentLoop, Tool ve Session veri sözleşmelerini tanımla.

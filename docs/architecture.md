@@ -59,7 +59,7 @@ Ham kod biçiminin kesin sözleşmesi açık karardır. ADR'deki `bash` bloklar�
 
 ## Kalıcı terminal ve çıktı (ADR-002, ADR-003)
 
-`ferrocore-runtime-pty`, `portable-pty` ile kalıcı kabuk yönetimini hedefler. Kabuk, komutlar arasında çalışma dizinini ve oturum durumunu korur. Her komut sonuna eklenecek sentinel çerçevesi komutun bittiğini ve çıkış kodunu bildirir. Akış ayrıştırıcısı çerçeveyi parçalı byte akışından çıkarır. **Sentinel'in gerçek biçimi kaynakta eksik görseldedir; uygulama öncesi tanımlanmalıdır.**
+`ferrocore-runtime-pty`, `portable-pty` ile kalıcı kabuk yönetimini hedefler. Kabuk, komutlar arasında çalışma dizinini ve oturum durumunu korur. Her komut sonuna eklenecek sentinel çerçevesi komutun bittiğini ve çıkış kodunu bildirir. Akış ayrıştırıcısı çerçeveyi parçalı byte akışından çıkarır. **Sentinel'in uygulanabilir metinsel biçimi kaynakta tanımlı değildir; Faz 2'yi engelleyen diğer açık sözleşmelerle birlikte [Faz 2 sözleşme önerileri taslağında](phase2-contract-proposals.md) onay bekleyen öneri olarak ele alınmıştır.**
 
 Geçici çalışma alanı `$FC_SCRATCH` ile kabuğa aktarılır:
 

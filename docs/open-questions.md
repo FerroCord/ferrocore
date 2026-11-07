@@ -2,7 +2,7 @@
 
 Bu liste, [özgün ADR](reference/architecture-decisions-2026-10-31.md) ve üst çalışma rehberinde eksik bırakılan uygulama ayrıntılarını görünür kılar. Aşağıdaki test ve karar başlıkları uygulama hazırlığıdır; kesinleşmiş yeni mimari kararlar olarak değerlendirilmemelidir.
 
-Mevcut tanılama CLI'sı `cargo run -- check` ile çalıştırılır ve ferrocord `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine bağlıdır. Linux ve Windows hedeflenir; Windows üzerinde çalıştırıldı, Linux doğrulanmadı. Faz 2 MVP tamamlanmadı; aşağıdaki LLM, sentinel ve platform sözleşmeleri açık kalır.
+Mevcut tanılama CLI'sı `cargo run -- check` ile çalıştırılır ve ferrocord `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine bağlıdır. Linux ve Windows hedeflenir; Windows üzerinde çalıştırıldı, Linux doğrulanmadı. Faz 2 MVP tamamlanmadı; aşağıdaki LLM, sentinel ve platform sözleşmeleri açık kalır. Faz 2 kapsamındaki başlıklar için değerlendirmeye sunulan öneriler [Faz 2 sözleşme önerileri taslağında](phase2-contract-proposals.md) toplanmıştır; kullanıcı onayı alınana kadar bu kararlar açık kalır.
 
 ## Uygulama öncesi sözleşmeler
 
@@ -66,7 +66,7 @@ Bu seçenek benimsenirse aşağıdaki davranışların kararlaştırılması ger
 
 ## Kaynakta eksik görseller
 
-- `image1`: Sentinel çerçeve biçimi yerine yer tutucu bulunuyor.
+- `image1`: ADR içinde gömülü PNG verisi bulunsa da görselden tam ve doğrulanabilir bir sentinel çerçeve sözleşmesi çıkarılamamaktadır; metinsel protokol uygulama öncesi netleştirilmelidir.
 - `image3`: Reflexion doğrulama akışı yerine yer tutucu bulunuyor.
 - `image2` ve `image4`: Kota ve skor anlatımında gömülü görseller var. Makineyle uygulanabilir metinsel formül ayrıca tanımlanmalıdır.
 - `image5`: Akış okları için kullanılan gömülü görsel; özgün kopyada korunur.
