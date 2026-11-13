@@ -1,0 +1,30 @@
+active_loop = "rlm"
+
+[llm]
+base_url = "https://api.example.com/v1"
+model = "model-name"
+# API anahtarını dosyaya değil, bu adlı ortam değişkenine koyun.
+api_key_env = "FERROCORE_API_KEY"
+max_retries = 3
+retry_base_ms = 500
+retry_cap_ms = 8000
+
+[budget]
+max_turns = 20
+max_total_tokens = 50000
+max_response_bytes = 1048576
+# Maliyet sınırı kullanılıyorsa üç alanı birlikte belirtin.
+# max_cost_micros_usd = 1000000
+# input_cost_per_million_micros = 1000000
+# output_cost_per_million_micros = 1000000
+
+[pty]
+startup_timeout_secs = 5
+# step_timeout_secs = 60
+# Kesme/UTF-8 bildirimlerinin sığması için PTY çalışma zamanında en az 192 bayt gerekir.
+output_view_bytes = 16384
+scratch_entries = 20
+
+[session]
+# session_timeout_secs = 3600
+log_dir = "./sessions"

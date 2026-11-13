@@ -1,10 +1,8 @@
-# Faz 2 MVP Sözleşme Önerileri (Karar Taslağı)
+# Faz 2 MVP Sözleşmeleri ve Kararları
 
 ## Belge statüsü ve kapsam
 
-Bu belge, `ferrocore` Faz 2 MVP uygulamasını engelleyen açık protokol ve veri sözleşmelerini değerlendirilebilir hale getiren **onay bekleyen karar taslağıdır**.
-
-- **Karar statüsü:** Buradaki hiçbir öneri kabul edilmiş mimari karar, kesinleşmiş API veya uygulanmış özellik değildir. Uygulamaya geçmeden önce her başlık için kullanıcı onayı gerekir.
+Kullanıcı (a)–(g) araştırma önerilerini onayladı. Bunlar Faz 2 tasarım kararlarıdır; henüz uygulanmış özellik veya doğrulanmış platform davranışı değildir. Sayısal varsayılanlar yapılandırılabilir başlangıç değerleridir. Platform kabul testleri ve aşağıda belirtilen kanıt eksikleri geçerlidir; kaynak ADR kopyası değiştirilmez.
 - **Mevcut durum:** Depodaki mevcut Rust ikilisi (`cargo run -- check`) yalnızca `ferrocord` `Context` ve `EventBus` entegrasyonunu doğrular; PTY, sentinel ayrıştırıcısı, LLM istemcisi ve RLM döngüsü henüz uygulanmamıştır.
 - **Mimari sınırlar:** [31 Ekim 2026 ADR](reference/architecture-decisions-2026-10-31.md) kararları ve `ferrocord` çekirdeğinin genel amaçlı sınırı (AI, LLM, prompt ve terminal kavramlarını içermemesi) aynen korunur.
 - **Kapsam sınırı:** Yalnızca Faz 2 MVP (`ferrocore-types`, `ferrocore-driver`, `ferrocore-runtime-pty`, `ferrocore-loop-rlm`) için gereken sözleşmeler ele alınır. Faz 3 (`internal-spawn` / UDS protokolü ve derinlik kotaları), Faz 4 (`ferrocore-loop-react`, MCP ve WASM adaptörleri) ve Faz 5+ döngüleri için yeni sözleşme icat edilmez; yalnızca Faz 2 veri sınırlarının ileri fazları kilitlememesi gözetilir.
@@ -24,16 +22,16 @@ Bu belge, `ferrocore` Faz 2 MVP uygulamasını engelleyen açık protokol ve ver
 ### Öneri ve gerekçe
 
 1. **Kabuk seçimi ve başlatma bayrakları:**
-   - **Linux:** `bash --noprofile --norc` adaydır; `bash` kurulu olmalıdır. Profil atlamak başlangıç etkilerini azaltır, ancak tek başına deterministik terminal davranışı garanti etmez.
-   - **Windows:** `portable-pty` ve ConPTY üzerinde `pwsh.exe -NoLogo -NoProfile` adaydır; PowerShell ayrıca kurulmalıdır. Etkileşimli PTY, kodlama, VT dizileri ve `$LASTEXITCODE`/`$?` davranışı gerçek platformda sınanmadan sarmalayıcı kesinleştirilemez.
+   - **Linux:** `bash --noprofile --norc -i` kullanılır; `bash` kurulu olmalıdır. Profil atlamak başlangıç etkilerini azaltır, deterministik terminal davranışını garanti etmez.
+   - **Windows:** `portable-pty` ve ConPTY üzerinde `pwsh.exe -NoLogo -NoProfile` kullanılır; PowerShell ayrıca kurulmalıdır. Kodlama, VT dizileri ve çıkış semantiği platform kabul testlerinde doğrulanmalıdır.
 2. **Başarısız başlatma davranışı:**
    - Kabuk ikilisi bulunamazsa, PTY çifti açılamazsa veya kabuk açıldıktan sonra yapılandırılan başlangıç el sıkışma süresinde (ör. `5 saniye`) ilk doğrulama sentinel'i dönmezse `PtyInitError` üretilir.
-   - Başlatma hatasında sessizce farklı semantikli bir kabuğa (ör. `bash` yerine `sh` veya `pwsh` yerine `cmd.exe`) otomatik geçiş yapılmaz; oluşturulmuş `$FC_SCRATCH` dizini ve yarım kalan çocuk süreç hemen temizlenir, LLM oturumu başlatılmaz.
+   - Başlatma hatasında farklı kabuğa sessiz geçiş yapılmaz ve LLM başlatılmaz. Çocuk süreç durdurulmaya çalışılır; süreç yoksa veya duruş doğrulanmışsa yalnız oturuma ait scratch temizlenmeye çalışılır, aksi halde scratch korunur, yolu ve belirsizlik bildirilir.
 3. **`$FC_SCRATCH` oluşturma, geri dönüş ve temizlik yaşam döngüsü:**
-   - `{id}` için 128 bit rastgele kimlik önerilir; çakışma olasılığı sıfır değildir, dizin münhasır oluşturulur ve çakışmada yeni kimlik denenir.
+   - `{id}` için rastgele kimlik kullanılır; çakışma olasılığı sıfır değildir, dizin münhasır oluşturulur ve çakışmada yeni kimlik denenir. Windows'ta rastgele ad erişim izni değildir; ACL doğrulanmalıdır.
    - **Linux:** Önce `/dev/shm` dizininin varlığı ve yazılabilirliği kontrol edilir; `/dev/shm/ferrocore_{id}` dizini yalnızca süreç sahibine açık izinle (`0700`) oluşturulur. `/dev/shm` yoksa, izin reddedilirse (`EACCES`) veya bellek diski doluysa (`ENOSPC`), oturumu düşürmek yerine `/tmp/ferrocore_{id}` (`0700`) dizinine geri dönülür ve yapılandırılmış bir uyarı olayı kaydedilir.
    - **Windows:** `std::env::temp_dir().join(format!("ferrocore_{id}"))` (tipik olarak `%LOCALAPPDATA%\Temp\ferrocore_{id}`) kullanılır.
-   - **Temizlik:** Normal bitişte, iptalde ve başlatma hatasında yalnız oturuma ait dizin temizlenmeye çalışılır; izin veya açık dosya nedeniyle başarısızlık bildirilir. Zorla sonlandırmada dizin kalabilir ve sonraki oturumda sessiz toplu silinmez.
+   - **Temizlik:** Normal bitiş, iptal ve başlatma hatasında ilgili süreçlerin duruşu doğrulanmışsa veya süreç hiç başlatılmamışsa yalnız oturuma ait dizin temizlenmeye çalışılır; aksi halde scratch korunur, yolu ve belirsizlik bildirilir ve yeni komut başlatılmaz. Temizlik hataları bildirilir; zorla sonlandırmada kalan dizinler sonraki oturumda sessizce silinmez. Süreç ağacının doğrulanması platform testlerine bağlıdır.
 
 ### Önemli bedel
 
@@ -43,7 +41,7 @@ Profil dosyalarının atlanması başlangıç etkilerini azaltabilir, ama kullan
 
 ```text
 Girdi (Linux oturum başlatma, id = "8f2a...c901", /dev/shm yazılabilir):
-  spawn: bash --noprofile --norc
+  spawn: bash --noprofile --norc -i
   env:   FC_SCRATCH=/dev/shm/ferrocore_8f2a...c901
 
 Başlangıç el sıkışması (çekirdek -> PTY):
@@ -52,7 +50,7 @@ Başlangıç el sıkışması (çekirdek -> PTY):
 Beklenen sonuç:
   1. /dev/shm/ferrocore_8f2a...c901 (0700) mevcuttur.
   2. El sıkışma çerçevesi 5 sn içinde okunur ve ayrıştırıcı tarafından tüketilir (girdi yankısı terminal ayarına bağlıdır; platformda doğrulanmalıdır).
-  3. Oturum kapanışında dizin kaldırılır.
+  3. İlgili süreçlerin duruşu doğrulanırsa oturum dizini temizlenmeye çalışılır.
 ```
 
 ### Sınır durumları ve beklenen sonuçlar
@@ -60,15 +58,14 @@ Beklenen sonuç:
 | Sınır durumu | Beklenen sonuç / karar durumu |
 | --- | --- |
 | Konteyner ortamında `/dev/shm` yok veya salt okunur | `/tmp/ferrocore_{id}` (`0700`) dizinine düşülür; oturum kaydına `scratch_fallback` uyarısı yazılır. |
-| Hedef kabuk ikilisi (`bash` veya `pwsh`) sistemde kurulu değil | Otomatik kabuk değiştirme yapılmaz; scratch dizini silinir ve açık `PtyInitError::ShellNotFound` döner. |
-| Kabuk açıldı ancak el sıkışma çerçevesi zaman aşımına uğradı | Çocuk süreç sonlandırılır, scratch silinir, LLM çağrısı yapılmadan hata döner. |
+| Hedef kabuk ikilisi (`bash` veya `pwsh`) sistemde kurulu değil | Otomatik kabuk değiştirme yapılmaz; çocuk başlatılmadıysa scratch temizlenmeye çalışılır ve açık `PtyInitError::ShellNotFound` döner. |
+| Kabuk açıldı ancak el sıkışma çerçevesi zaman aşımına uğradı | Çocuğu durdurma denenir; duruş doğrulanırsa scratch temizlenmeye çalışılır, aksi halde korunur, yolu ve belirsizlik bildirilir. LLM çağrısı yapılmaz. |
 | Oturum `SIGKILL` ile çöktü | `ferrocore_{id}` dizini inceleme/kurtarma için diskte kalır; sonraki normal oturum başka `{id}` alır ve eski dizinleri sessizce silmez. |
 | Windows ConPTY altında PowerShell çıkış kodu ve VT dizileri | **Açık kanıt ihtiyacı:** Uygulama öncesi `portable-pty` ile gerçek ConPTY duman testi çalıştırılarak `$LASTEXITCODE`/`$?` sarmalayıcısı doğrulanmalıdır. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- Linux'ta `bash` zorunluluğu (otomatik `/bin/sh` geri dönüşü olmaması) ve Windows'ta `pwsh` hedefi kabul ediliyor mu?
-- `/dev/shm` kullanılamadığında `/tmp` geri dönüşü yapılması mı, yoksa yapılandırmaya göre sert hata verilmesi mi tercih ediliyor?
+`bash --noprofile --norc -i`, `pwsh -NoLogo -NoProfile`, farklı kabuğa geçmeme, yapılandırılabilir 5 saniyelik el sıkışması ve Linux `/dev/shm` → `/tmp` geri dönüşü seçildi. PTY açma ve spawn çağrıları bu el sıkışması süresiyle otomatik sınırlanmaz. Duruşu doğrulanamayan süreçlerde scratch korunur; süreç ağacı ve temizlik platformlarda sınanmalıdır.
 
 ---
 
@@ -76,19 +73,21 @@ Beklenen sonuç:
 
 ### Kaynakta kesin olan
 
-- Kalıcı kabuk her komutta kapanmadığı (`EOF` üretmediği) için her komutun sonuna çekirdek tarafından görünmez bir çerçeveleme komutu eklenir; `Stream Interceptor` bu diziyi yakaladığında komutun tamamlandığını ve kesin `exit_code` değerini anlar (ADR-002).
-- **ADR `image1`:** Kaynakta gömülü PNG verisi vardır; bu çalışma için görselin içeriği güvenilir biçimde okunamadığından byte biçimi hakkında çıkarım yapılmaz. Aşağıdaki çerçeve kaynak alıntısı değil, onay bekleyen öneridir.
+- Kalıcı kabuk her komutta kapanmadığı (`EOF` üretmediği) için her komutun sonuna çekirdek tarafından bir çerçeveleme komutu eklenir; `Stream Interceptor` bu diziyi yakaladığında komutun tamamlandığını ve çıkış kodunu anlamayı hedefler (ADR-002).
+- **ADR `image1`:** Görselden byte biçimi güvenilir biçimde çıkarılamamıştır. Linux RS/US ve Windows ASCII biçimleri kullanıcı tarafından platform kabul testleri koşuluyla seçilmiştir; bunlar kaynak alıntısı değildir.
 
 ### Öneri ve gerekçe
 
 1. **Byte çerçevesi, oturum gizli değeri ve komut kimliği:**
    - Her PTY oturumu başlarken 128-bit kriptografik rastgele `session_nonce` (`32` küçük harf hex karakter) üretilir.
    - Her komuta oturum içinde kesin artan `cmd_id: u64` (`1, 2, 3, ...`) verilir.
-   - Ham sentinel byte çerçevesi ASCII kontrol karakterleri `0x1E` (`RS`, Record Separator) ve `0x1F` (`US`, Unit Separator) ile sınırlandırılır:
+   - Linux'ta ham sentinel byte çerçevesi `0x1E` (`RS`) ve `0x1F` (`US`) ile sınırlandırılır:
      ```text
      \x1e__FC_END__:<session_nonce>:<cmd_id>:<exit_code>__\x1f\n
      ```
    - `session_nonce` kabuk ortam değişkenine (`export`) **yazılmaz**; yalnızca çekirdeğin gönderdiği sarmalayıcı satırda anlık sabit olarak yer alır.
+   - Windows için seçilen aday `__FC_END__:<session_nonce>:<cmd_id>:<exit_code>__` ASCII çerçevesi ve satır sonudur. Echo, VT, satır sarılması, çakışma, tüm parçalanma sınırları ve PowerShell çıkış semantiği kabul testlerinde doğrulanmalıdır; geçici deney üretim garantisi değildir.
+   - PowerShell'de `$LASTEXITCODE` yerel programların çıkış durumuyla ilgilidir; cmdlet ve PowerShell deyimleri için `$?` ayrıca ele alınmalıdır. Bütün komut türleri için tek ve doğru sayısal çıkış kodu semantiği henüz kanıtlanmamıştır; sarmalayıcı platform kabul testlerine bağlıdır.
 2. **Komut sarmalama (POSIX `bash`):**
    - Yorumla biten tamamlanmış bir komuttan sonra `\n` eklemek sarmalayıcının yorum içinde kalmasını önleyebilir; kapanmamış tırnak, heredoc veya çok satırlı sözdizimi için yeterli değildir. Sözdizimi ve etkileşimli kabuk davranışı platformda doğrulanmalıdır.
    - `printf` için sekizli kaçışlar kullanmak, girdi yankısında kontrol baytlarının doğrudan bulunmasını önlemeyi hedefler; terminal dönüşümleri ve yankı davranışı ayrıca doğrulanmalıdır:
@@ -96,12 +95,73 @@ Beklenen sonuç:
      <kullanıcı_komutu>
      __fc_ec=$?; printf '\036__FC_END__:%s:%s:%d__\037\n' '<session_nonce>' '<cmd_id>' "$__fc_ec"
      ```
-3. **Parçalı byte akışı:** Önerilen ayrıştırıcı her okuma sınırında aday öneki tutar; `128` baytı aşan veya geçersiz adayları sıradan çıktıya geri verir. İç içe başlayan adayları kaçırmamak için geri verilen baytlarda olası sonraki `0x1E` yeniden değerlendirilir. Tam eşleşme (`\n` veya `\r\n`) yalnız aktif kimlik ve geçerli çıkış kodunda bitiş adayı sayılır. EOF veya iptalde kısmi aday çıktı olarak korunur. Bu yaklaşımın terminal dönüşümlerinde doğrulanması gerekir.
+3. **Parçalı byte akışı:** Tek okuyuculu ayrıştırıcı hem Linux `0x1E` hem Windows ASCII `__FC_END__:` önekini her okuma sınırında sınırlı aday tamponunda izler. Geçersiz veya sınırı aşan adayın baytları kayıpsız sıradan çıktıya geri verilir; geri verilen dizide örtüşen veya iç içe başlayan sonraki ilgili platform önekleri yeniden değerlendirilir. Tam eşleşme (`\n` veya `\r\n`) yalnız aktif kimlik ve geçerli çıkış kodunda bitiş adayı sayılır. EOF veya iptalde kısmi aday çıktı olarak korunur. Her byte sınırı, örtüşme ve terminal dönüşümleri iki platformda da sınanmalıdır.
 4. **Kabuk kapanması ve zaman aşımı:**
    - Aktif komut sürerken PTY `EOF` döndürür veya çocuk kabuk süreci kapanırsa (`exit` komutu, `exec` hatası, çökme), bekleyen komut `PtyCommandOutcome::ShellExited { exit_status, partial_output }` olarak sonlanır; sürücü kabuğun kapandığını modele açıkça bildirir veya yapılandırmaya göre yeni kabuk başlatmadan hatayla durur.
 5. **Güven sınırı (Trust Boundary):**
-   - Sentinel sandbox veya kimlik doğrulama değildir; yanlış eşleşme olasılığını azaltma önerisidir. Nonce sarmalayıcıda göründüğünden aynı PTY'deki komut veya süreç tarafından öğrenilip geçerli çerçeve taklit edilebilir; böyle bir çerçeve gerçek tamamlanmadan ayırt edilemez. ADR'nin kesin çıkış kodu hedefi güvenilmeyen komutlar için bu yöntemle garanti edilemez.
-   - Kabuk durumu bozulabilir (`set -e`, `trap`, `exit`) ve arka plan süreçleri yazabilir. Güvenilir izolasyon/ayrı kontrol kanalı gerekip gerekmediği için platform kanıtı ve kullanıcı kararı gerekir; işletim sistemi izolasyonu ayrıca değerlendirilmelidir.
+   - **Seçilen varsayılan:** Kalıcı kabuk durumunu koruyan bant içi sentinel, komutların sentinel'i ve kabuk sarmalayıcısını kasıtlı olarak bozmaması varsayımıyla kullanılır. Linux RS/US, Windows ASCII platform kabul testlerine bağlıdır.
+   - Sentinel sandbox değildir; nonce kimlik doğrulama sağlamaz, yalnızca kazara yanlış eşleşme olasılığını azaltmayı hedefler. Sarmalayıcıda görünen nonce aynı PTY'deki komut veya süreç tarafından öğrenilip geçerli çerçeve taklit edilebilir. Güvenilmeyen komutlarda sahte bitiş gerçek bitişten ayırt edilemez ve çıkış kodu kesin değildir. ADR-002'nin kesin çıkış kodu ifadesi ancak seçilen güven varsayımı altında hedeflenebilir; platform davranışı ayrıca doğrulanmalıdır.
+   - Kabuk durumu bozulabilir (`set -e`, `trap`, `exit`) ve arka plan süreçleri yazabilir. Ayrı kontrol kanalı tek başına izolasyon sağlamaz; güvenilmeyen komutlar için işletim sistemi izolasyonu ve uygun kontrol mekanizması ayrıca değerlendirilmelidir.
+
+### Platform deneyi: ön koşul sonuçları
+
+Bu deneyler kullanıcı tarafından seçilen adayların üretimde doğrulandığını göstermez; sonuçlar yalnız belirtilen WSL ve Windows ortamlarındaki gözlemlerdir.
+
+| Platform / echo modu | Sonuç |
+| --- | --- |
+| Windows 10.0.26100.9711, PowerShell 7.6.9 / varsayılan | **Gözlendi:** `GetConsoleMode` başarılı, mod `503`; normal çıktı ve girilen komut göründü. |
+| Windows / açık | **Gözlendi:** `SetConsoleMode` başarılı, mod `503 → 503`; normal çıktı ve girilen komut göründü. |
+| Windows / kapalı | **Kanıtsız:** `SetConsoleMode` başarılı, mod `503 → 499` geri okundu; buna rağmen girilen komut göründü. Echo kapatmanın etkisi gösterilemedi. |
+| Linux WSL 2, Ubuntu-26.04 / varsayılan | **Gözlendi:** `stty -a` `echo` bildirdi; komut ve çıktısı göründü. |
+| Linux WSL 2 / açık | **Gözlendi:** `stty echo` sonrasında `stty -a` `echo` bildirdi; komut ve çıktısı göründü. |
+| Linux WSL 2 / kapalı | **Gözlendi:** `stty -echo` sonrasında `stty -a` `-echo` bildirdi; normal komutun ve sarmalayıcının yankısı görünmedi, çıktı göründü. |
+
+Linux deneyi: Bash `5.3.9(1)`, Rust/Cargo `1.93.1`, `portable-pty 0.9.0`; ayrı 80×24 PTY oturumları `bash --noprofile --norc -i` ile açıldı. `printf 'NORMAL_%s\n' MARKER` çıktısı her modda `4e4f524d414c5f4d41524b45520d0a` (`NORMAL_MARKER` ve CRLF) idi. `true` ve `false` komutları ile taslaktaki `__fc_ec=$?; printf '\036__FC_END__:%s:%s:%d__\037\n' '0123456789abcdef0123456789abcdef' '7' "$__fc_ec"` sarmalayıcısı ayrı satırlarda gönderildi; gerçek durum hemen `$?` ile yakalandı. Nonce `0123456789abcdef0123456789abcdef`, kimlik `7` idi. Varsayılan ve açık modda sarmalayıcı yankılandı; kapalı modda yankılanmadı.
+
+- Başarı çerçevesi: `1e5f5f46435f454e445f5f3a30313233343536373839616263646566303132333435363738396162636465663a373a305f5f1f0d0a` (çıkış `0`).
+- Başarısızlık çerçevesi: `1e5f5f46435f454e445f5f3a30313233343536373839616263646566303132333435363738396162636465663a373a315f5f1f0d0a` (`false` çıkışı `1`). Her iki çerçevede RS `1e`, US `1f` ve CRLF `0d0a` gözlendi.
+- Her modda `cd /tmp` sonrasında ayrı `printf 'PWD_%s\n' "$PWD"` komutu `PWD_/tmp` döndürdü; `exit` sonrasında kabuklar başarıyla kapandı. Zaman aşımı gözlenmedi.
+- İlk, komut ve sarmalayıcının aynı satırda gönderildiği denemede açık modda yankılanan sarmalayıcı ve çerçeve bir okumada birleşti; ayrı satırlı denemede kapalı modda `false` çerçevesinin son CRLF baytları ayrı okumaya bölündü. Bu gözlemler bütün parçalanma koşullarının sınanması değildir. Üç mod tekrarlandığında zaman damgaları okuyucu iş parçacığında `read` dönüşünden hemen sonra alındı; bu, baytların üretim zamanı değildir. Önceki kayıtlarda damgalar kanal tüketiminde alındığından gecikmeli olabilir. Tekrarın ham kaydı `D:/pty-linux-experiment/experiment-read-timestamp.log`; kapanışta okuyucu beklenmediği için son baytların tamamı kaydedilmiş olmayabilir.
+- Echo kapalıyken bile akışta `PTY_READY> ` istemi ve `1b5b3f323030346c0d0d0a` gibi terminal kontrol baytları görüldü; echo kapatmak tek başına temiz komut çıktısı sağlamadı.
+
+Windows deneyi: `portable-pty 0.9.0`, 80×24 ConPTY ve `pwsh.exe -NoLogo -NoProfile`. İlk denemede üç oturum imleç konumu sorgusu `1b 5b 36 6e` sonrası 10 saniyede zaman aşımına uğradı. Tekrarda deneye terminal yanıtı `1b 5b 31 3b 31 52` eklendi; üç oturum tamamlandı ve `exit` ile kapandı. Bu yanıtın genel bir terminal uygulaması için yeterliliği sınanmadı. PTY açma ve süreç oluşturma çağrılarının kendisine ayrı zaman sınırı uygulanmadı.
+
+Çocuk `pwsh.exe -NoLogo -NoProfile -Command 'exit 0'` ve `exit 2` sonrası `$LASTEXITCODE` hemen kaydedildi; üç modda sırasıyla `0` ve `2` gözlendi. `[Console]::Write` ile RS ve US üretilmesi denendi; ham okumalarda `1e` ve `1f` görülmedi. Örneğin başarısızlık çıktısında `EXIT_FAILURE=2` için `45 58 49 54 5f 46 41 49 4c 55 52 45 3d 32 0d`, sonraki okumada `0a 5f 5f 46 43 5f 45 4e 44 5f 5f ... 3a 37 3a 32 5f 5f`, ardından `0d 0a` görüldü. Dolayısıyla aday RS/US çerçevesi bu Windows denemesinde doğrulanmadı. Normal çıktı `NORMAL_OUTPUT_42` (`4e 4f 52 4d 41 4c 5f 4f 55 54 50 55 54 5f 34 32`) ve yankılanan sarmalayıcı gözlendi. `Set-Location $env:TEMP` sonrası sonraki komut geçici dizini gösterdi. ANSI dizileri ve parçalı okumalar gözlendi; tüm parçalanma koşulları sınanmadı. Okuma zamanları okuyucu iş parçacığında kaydedildi. Ham kayıtlar geçici `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/` dizinindedir.
+
+**Windows RS/US araştırması — sınırlı deney:** Ayrı geçici `probe.rs` ve `frame.rs` programları `portable-pty` ile 120×24 ConPTY ve `pwsh.exe -NoLogo -NoProfile` kullandı; imleç sorgusuna deneysel terminal yanıtı verildi. `artifact://65` ham çalışma kaydında stdout modu `7`, üç yazma yöntemi için sırasıyla `ABC`, `DEF`, `GHI` çıktıları ve işlenmiş çıktı modu kapatıldığında `4a 1e 4b 1f 4c` görüldü. Bu bulgular `[Console]::Write`, `WriteConsole` ve `WriteFile` ile varsayılan modda RS/US kaybı gözlemiyle uyumludur; ancak mevcut geçici kaynakla kaydın birebir eşleşmesi doğrulanmadı. [Microsoft SetConsoleMode belgesi](https://learn.microsoft.com/en-us/windows/console/setconsolemode) bu bitin çıktı işleme modu olduğunu tanımlar; gözlem, kaybın bu ortamda modla ilişkili olduğuna işaret eder, genel bir nedensellik veya tüm Windows sürümleri için garanti değildir.
+
+`frame.rs` deneyinde çocuk `pwsh` çıkışları `0` ve `2` hemen `$LASTEXITCODE` ile alındı; kaydedilen stdout modunda yalnız çerçeve yazılırken bu bit temizlenip ardından önceki modun geri yüklenmesi çağrıldı. `artifact://69` içindeki ham kayıtta sırasıyla `1e 46 52 41 4d 45 5f 61 33 34 64 3a 37 3a 30 1f` ve aynı dizinin `30` yerine `32` içeren hali görüldü. Bu kısa deney çerçevesi yukarıdaki önerilen tam biçim değildir. Aynı kayıtta ASCII adayları `ASCII_a34d:7:0:END` ve `ASCII_a34d:7:2:END` de görüldü; bu adaylar mod geri yükleme çağrılarından sonra yazıldı, ancak gerçek mod geri okunmadığından normal moda dönüş doğrulanmadı. `GetConsoleMode` ve her iki `SetConsoleMode` çağrısının dönüşleri `frame.rs` içinde kontrol edilmedi; özellikle geri yüklemenin başarılı olduğu kanıtlanmadı. Kayıtta yankılanan komutlar ve terminal dizileri de vardır.
+
+
+**Sonraki güçlendirilmiş deney:** Geçici `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/src/bin/frame.rs` ve UTF-16 `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/conpty-frame-evidence.log` incelendi. Bu kaynak dosyası yukarıdaki tarihsel kısa çerçeve deneyinden sonra değişmiştir; o deneyin mevcut kaynakla birebir eşleştiği varsayılmamalıdır. Yeni deney `pwsh.exe -NoProfile -NoLogo` ve 24 satır, **5000 sütunlu** ConPTY kullandı; bu sıra dışı genişlik normal terminal boyutlarında eşdeğer davranış göstermez. İmleç sorgusuna deneysel yanıt verilir; komut yankısı ve terminal dizileri hâlâ akıştadır.
+
+Çocuk `pwsh` süreçlerinin `0` ve `2` çıkışları hemen `$LASTEXITCODE` ile alındı. Kaydın ham `READ` baytlarında, tam nonce `0123456789abcdef0123456789abcdef` ve kimlik `7` ile sırasıyla `\x1e__FC_END__:0123456789abcdef0123456789abcdef:7:0__\x1f\n` ve `\x1e__FC_END__:0123456789abcdef0123456789abcdef:7:2__\x1f\n` görüldü. İki normal durumda `GetConsoleMode`, biti kapatan `SetConsoleMode`, `finally` içindeki geri yükleme ve sonraki `GetConsoleMode` başarılı bildirildi; öncesi ve sonrası `7`, karşılaştırma `True` idi. Çerçeve yazıldıktan sonra enjekte edilen PowerShell hatası da yakalandı; `finally` geri yüklemesi ve modun tekrar okunması başarılı bildirildi, mod yine `7` idi ve çıkış kodu `2` korundu. Üç durumun bitiş işaretleri alındı. Bu, önceki deneydeki kontrol edilmemiş geri yükleme çağrısından daha güçlü ama yalnız belirtilen koşullara özgü kanıttır.
+
+API çağrılarının gerçek başarısızlığı, kritik aralıkta zorla öldürme ve eşzamanlı çıktı sınanmadı; enjekte edilen hata API hatası veya süreç ölümü değildir. Deney sürücüsü bitiş işaretlerinden sonra çocuk kabuğa `kill` çağırır; bu, kritik aralıkta öldürme sınaması değildir.
+
+**80×24 tekrar deneyi:** Geçici `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/src/bin/frame80.rs`, `portable-pty` ile `pwsh.exe -NoProfile -NoLogo` için gerçek 80×24 ConPTY açtı ve imleç sorgusuna deneysel yanıt verdi. `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment` dizininde `cargo run --bin frame80 > frame80.log 2>&1` çalıştırıldı. Kaynak ve `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/frame80.log` ham kaydı **geçicidir**; kalıcı kanıt olarak saklanacakları garanti değildir. Mevcut kaynak dosyasının çalıştırma sırasında kullanılan sürümle birebir eşleştiği kanıtlanmamıştır.
+
+- Kaydın 21 ve 35. satırlarındaki `READ` baytlarında, sırasıyla gerçek çocuk `pwsh` süreçlerinin `exit 0` ve `exit 2` değerleri `$LASTEXITCODE` ile hemen alındıktan sonra, nonce `0123456789abcdef0123456789abcdef` ve kimlik `7` ile tam `\x1e__FC_END__:0123456789abcdef0123456789abcdef:7:0__\x1f\n` ve `\x1e__FC_END__:0123456789abcdef0123456789abcdef:7:2__\x1f\n` çerçeveleri görüldü. 49. satırda sentetik hata durumunun `2` kodlu aynı çerçevesi vardır.
+- Normal iki durumda ve çerçeveden sonra sentetik PowerShell hatası atılıp yakalanan durumda `GetConsoleMode`, biti kapatan `SetConsoleMode`, `finally` geri yüklemesi ve sonraki `GetConsoleMode` başarılı bildirildi; başlangıç ve son mod `7`, eşitlik `True`, yakalanan çıkış kodları sırasıyla `0`, `2`, `2` idi (21, 35 ve 49–50. satırlar). Bu sentetik hata gerçek bir API hatası veya süreç ölümü değildir. 35 ve 49–50. satırlarda terminal kaydırması ve VT dizileri sonuç metnini böler.
+- Çerçeve `finally` içindeki geri yüklemeden önce yayınlanır. Bu nedenle bir tüketici bitiş çerçevesini gördüğünde geri yükleme henüz tamamlanmamış veya başarısız olmuş olabilir; çerçeve tek başına modun geri yüklendiğini göstermez. Deney sürücüsü `DONE` işaretlerini bekler; çerçeveyi veya API durumlarını otomatik doğrulamaz. Yukarıdaki bulgular ham kaydın elle değerlendirilmesine dayanır.
+- Komut ve sarmalayıcı yankısı ile VT dizileri akışta görüldü (ör. 10, 16–19 ve 24–33. satırlar); echo kapalı durumu ve eşzamanlı çıktı bu tekrarda sınanmadı. Yankıdaki nonce gizli kabul edilemez. Çerçeve bütünlüğü, eşzamanlı yazma altında garanti edilmiş değildir.
+- Her işaret bekleyişine 30 saniye sınırı kondu; PTY açma, süreç oluşturma, `kill` ve `wait` çağrılarının ayrı zaman sınırı yoktu. Okuyucu iş parçacığında zaman damgası alınmadı ve kapanışta okuyucu beklenmediğinden son baytların tamamı kaydedilmiş olmayabilir. Üç bitiş işareti alındıktan sonra `kill` başarılı bildirildi ve `wait` çıkış kodu `1` döndürdü (52–54. satırlar); bu, kritik aralıkta öldürme deneyi veya doğal çıkış kodu değildir.
+
+**80×24 ASCII adayı:** `portable-pty` ve `pwsh.exe -NoProfile -NoLogo` ile geçici `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/src/bin/ascii80.rs` ve `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/ascii80-raw.log` kaydındaki deneyde imleç sorgusuna deneysel yanıt verildi. Gerçek çocuk süreçlerin `exit 0` ve `exit 2` sonuçları hemen `$LASTEXITCODE` ile alındı; sırasıyla `__FC_END__:0123456789abcdef0123456789abcdef:7:0__` ve `...:7:2__` CRLF ile görüldü (ham kayıt 21–22, 30–32). `GetConsoleMode` her iki durumda çocuk öncesinde ve çerçeveden önce başarılı ve `7` idi; çerçeveden sonra mod ölçülmedi, mod değiştirilmedi. Eksik önek ayrıca yazıldı (14); toplam önek sayısı üç, iki tam çerçevenin her birinin sayısı birdi (47–49). Bu sayım tek başına ayrıştırıcının eksik öneği reddettiğini kanıtlamaz. `Set-Location $env:TEMP` sonrası ayrı komut geçici dizini gösterdi (44).
+
+Çerçeve metni kaynakta parçalara ayrılarak oluşturuldu; bu çalışmada işaret bekleyişleri boyunca toplanan ham akışta her tam çerçeve bir kez sayıldı. Sayım `exit` sırasında sonradan okunan baytları kapsamaz. Bu sınırlı echo negatif kontrolüdür: komut yankısı ve VT dizileri vardı; farklı yeniden çizimler veya komut çıktısı eşleşme üretebilir ve aynı PTY'deki komut çerçeveyi taklit edebilir. Sayaç yalnız belirli iki tam diziyi arar; genel çakışma, parçalanma ve güvenlik testi değildir.
+
+**80×24 iki aşamalı deney adayı:** Geçici `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/src/bin/commit80.rs` ve `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/commit80.log` kaydında RS/US adayı, bit kapatılarak yazıldı; ardından başarılı geri yükleme ve eşit mod geri okuması koşuluyla kaynakta bölünerek kurulan ASCII commit yazıldı. Gerçek çocuk çıkışları `0` ve `2` için ham kayıtta aday sonrası sırasıyla `COMMIT_N0_0_OK` ve `COMMIT_N2_2_OK`, başarılı Get/Set/restore/readback ve `7 → 7` görüldü (21, 38–39). Deneyin basit sıralı bayt kontrolü ikisini kabul etti (23, 42). Restore çağrısının **atlanmasıyla simüle edilen** durumda `2` adayı vardı, restore `False`, geri okunan mod `6`, commit yoktu; kontrol adayı reddetti (55–56, 59). Bu gerçek API hatası değildir; ardından deney temizliği modu `7` olarak geri yükleyip okudu. Commit yokluğu yalnız `DONE_FAIL2` işaretine kadar toplanan baytlarda kontrol edildi. İki aşama üretim çözümü veya karar değildir; commit ve aday sahteciliğe dayanıklı değildir, echo ve eşzamanlı çıktı güvenliği kanıtlanmadı.
+
+Her iki kaynak ve ham günlük geçicidir, kalıcı kanıt olarak saklanmaları garanti değildir. ASCII deneyinde her işaret ve doğal çıkış bekleyişi 10 saniyeyle sınırlıydı; doğal çocuk çıkışı `0` görüldü, okuyucu birleştirilmedi ve son baytlar eksik olabilir (53–54). İki aşamalı deneyde işaret bekleyişleri 30 saniye, dış çalıştırma 120 saniyeyle sınırlandı; `kill` başarılı ve `wait` kodu `1` idi, okuyucu birleştirilmedi. Her iki deneyde PTY açma, süreç oluşturma ve temizlik çağrılarının ayrı zaman sınırı yoktu; erken I/O hatalarında temizliğin tamamlanması garanti edilmedi. Gerçek API hatası, kritik anda süreç ölümü, eşzamanlı çıktı ve tüm terminal/okuma parçalanmaları sınanmadı.
+
+Bu sonuçlar üretim doğrulaması değildir. Seçilen Linux RS/US ve Windows ASCII adayları echo, VT, satır sarılması, çakışmalar, parçalanma, eşzamanlı çıktı, süreç kapanışı ve hata yolları için platform kabul testlerinden geçmelidir. Nonce kimlik doğrulamaz; mod değişikliği deneyleri Windows ASCII seçiminden ayrı tarihsel kanıttır.
+
+**Kanıt karşılaştırması ve sınır:** Geçici `D:/pty-linux-experiment/experiment-read-timestamp.log` Linux'ta `0` ve `1`, `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/ascii80-raw.log` Windows ASCII adayında `0` ve `2` gözlemleriyle uyumludur; ASCII çerçevesinden sonra mod ölçülmemiştir. `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/commit80.log` geri yükleme atlanarak yapılan simülasyonda commit yokluğu ve `false` kabul sonucuyla uyumludur. `%LOCALAPPDATA%/Temp/fc-pty-experiment/ascii80-raw.log` değişkeni literal okuma yolunda genişlemedi ve `Path not found` verdi; gerçek yol kullanıldı. Bu kayıtlar geçicidir ve deneylerde kullanılan kaynak sürümüyle birebir eşleşmeleri kanıtlanmamıştır; deneyler yeniden üretilmiş sayılmaz. Linux ve Windows bulguları genel platform garantisi değildir.
+
+Literal `%LOCALAPPDATA%/Temp/fc-pty-experiment/commit80.log` yolu da genişlemedi ve `Path not found` hatası verdi; yukarıda belirtilen gerçek `C:/Users/Blue/AppData/Local/Temp/fc-pty-experiment/commit80.log` yoluna erişildi.
+
+**Adaylar ve karar bağımlılığı:** Windows'ta RS/US mod değiştirmeye bağımlı olabilir; tek çerçeve geri yükleme başarısını kanıtlamaz. Seçilen Windows ASCII adayı sınırlı gözlenmiştir; echo, çakışma ve parçalı akış güvenliği kanıtlanmamıştır. Tarihsel iki aşamalı deney geri yükleme kontrolünden sonra commit kullanır; gerçek API hatası, kritik anda süreç ölümü ve eşzamanlı yazma sınanmamıştır. Seçilen Linux echo kapatma denemesi, Windows echo'nun kapandığını varsaymama, iptal ve belirsiz durumda oturumu durdurma politikaları platformda sınanmalıdır. Durdurma doğrulanamazsa scratch korunur, yolu ve belirsizlik bildirilir. Nonce kimlik doğrulamaz ve ortak PTY'deki arka plan çıktısının gerçek sahibi belirlenemez.
 
 ### Önemli bedel
 
@@ -133,20 +193,18 @@ Ayrıştırıcı çıktısı:
 
 | Sınır durumu | Beklenen sonuç / karar durumu |
 | --- | --- |
-| Sentinel çerçevesi 1'er baytlık okumalarla bölünür | Önerilen kayan tampon parçaları birleştirir; tam eşleşmede çerçeve çıktıdan ayrılır ve `exit_code` okunur (terminal dönüşümleriyle sınanmalıdır). |
-| Komut çıktısı yanlış nonce ile `\x1e__FC_END__:sahte:7:0__\x1f\n` basar | `session_nonce` uyuşmadığı için bitiş sayılmaz, baytlar normal çıktıya aktarılır. |
-| Aynı PTY'deki komut gerçek `session_nonce` ve `cmd_id` ile geçerli çerçeve basar | Bant içi (in-band) ayrıştırıcı bunu gerçek bitişten ayırt edemez; güvenilmeyen komutlar için açık sınır/kontrol kanalı kararı gerekir. |
-| Bozuk alanlı çerçeve (`\x1e__FC_END__:<nonce>:7:abc__\x1f\n`) veya tek başına `\x1e` + 5 KB metin | Geçerli tam çerçeve oluşmadığında veya `128 bayt` sınırında tutulan baytlar sıradan çıktıya geri verilir; içteki sonraki `0x1E` kaçırılmaz. |
+| Linux RS/US veya Windows ASCII sentinel çerçevesi birer baytlık okumalarla bölünür | Sınırlı tampon parçaları birleştirir; tam eşleşmede çerçeve çıktıdan ayrılır ve çıkış kodu okunur. Her iki platformda terminal dönüşümleri ve tüm byte sınırları sınanmalıdır. |
+| Linux veya Windows çerçevesinde nonce yanlış | Bitiş sayılmaz; baytlar kayıpsız normal çıktıya aktarılır, bunlarda örtüşen sonraki platform önekleri yeniden değerlendirilir. |
+| Aynı PTY'deki komut gerçek `session_nonce` ve `cmd_id` ile geçerli çerçeve basar | Bant içi ayrıştırıcı bunu gerçek bitişten ayırt edemez; güvenilmeyen komutlar için işletim sistemi izolasyonu gerekir. |
+| Linux `0x1E` veya Windows `__FC_END__:` önekli bozuk, uzun ya da örtüşen aday | Geçersiz veya sınırı aşan aday baytları kayıpsız çıktı olur; Linux RS ve Windows ASCII öneğinin içeride veya örtüşerek başladığı konumlar yeniden değerlendirilir. |
 | Kabuk kapanırken (`EOF`) tamponda yarım sentinel adayı kalır | Kısmi aday baytları kaybolmadan `partial_output` sonuna eklenir ve `ShellExited` raporlanır. |
 | Tamamlanmış komut `# yorum` ile biter | Araya yeni satır eklenmesi sarmalayıcıyı yorumdan ayırmayı hedefler; kabuk davranışı sınanmalıdır. |
-| Kapanmamış tırnak veya heredoc | Sentinel gelmeyebilir; öneri zaman aşımında iptal ve belirsiz kabuk durumunu bildirmektir. Kurtarma yöntemi platform kanıtı ve kullanıcı kararı bekler. |
+| Kapanmamış tırnak veya heredoc | Sentinel gelmeyebilir; zaman aşımında iptal ve belirsiz kabuk durumu bildirilir; güvenli duruş doğrulanamazsa scratch korunur, yolu bildirilir ve yeni komut başlatılmaz. |
 | `exit 42` veya `set -e; false` | Kabuk kapanırsa tamamlanmamış komut hata ve eldeki kısmi çıktı ile raporlanır; EOF davranışı sınanmalıdır. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- `\x1e__FC_END__:<nonce>:<cmd_id>:<exit_code>__\x1f\n` çerçeve biçimi ve PTY girdi echosunun kapatılması (`ECHO` off) / korunması tercihi onaylanıyor mu?
-- Zaman aşımı veya kapanmamış tırnak sonrası kabuk kurtarılamazsa oturumun hatayla durması mı, yoksa son bilinen `PWD` ile yeni bir PTY kabuğu açılması mı isteniyor?
-- Güvenilmeyen komutların sentinel'i taklit edebilmesi karşısında ayrı kontrol kanalı veya açık güven varsayımı seçilecek mi? Kabuk ve PTY davranışına dair platform kanıtı gereklidir.
+Linux RS/US, Windows ASCII; Linux'ta echo kapatılması ve Windows'ta echo'nun güvenilir biçimde kapandığı varsayılmadan çerçeveleme seçildi. Otomatik yeni kabukla sessiz kurtarma yerine hata ve güvenli duruş esastır. Her byte sınırında parçalanma, echo, VT, satır sarılması, çakışma, çıkış kodu ve iptal gerçek platformlarda sınanmalıdır. Güvenilmeyen komutların izolasyonu bu sentinel tarafından sağlanmaz.
 
 ---
 
@@ -159,12 +217,11 @@ Ayrıştırıcı çıktısı:
 
 ### Öneri ve gerekçe
 
-1. **Önerilen eşik ve ölçümler:**
-   - Bayt eşiği `10 KiB = 10_240 bayt` (sentinel ayıklandıktan sonraki ham bayt uzunluğu), satır eşiği `150 satır` olarak önerilir.
-   - Budama koşulu: `raw_bytes.len() > 10_240 || line_count > 150`.
-   - RLM adımlarında modelin her zaman aynı dosya yoluna başvurabilmesi için eşikler aşılmadığında da son tamamlanan komutun tam çıktısının `$FC_SCRATCH/last_output.log` olarak yayımlanması önerilir (yalnız budama olduğunda yazılması alternatifi kullanıcı kararına açıktır).
-2. **Bağlam görünümü:** Satır ayıracı `LF`, sonlandırılmamış son parça bir satır sayılması adaydır; CRLF görünümde normalize edilebilir. Ham kayıt değiştirilmez. Geçersiz UTF-8 için görünümde kayıplı dönüşüm önerilir. Eşik aşıldığında ilk ve son 50 satır örtüşmeden sunulur. Uzun tek satırda 50+50 satır ile bağlam sınırı çatışır: karakter sınırında baş/son bayt dilimi önerisi ADR'deki tam satır şartını değiştirir; ADR yorumu veya değişikliği için kullanıcı kararı gereklidir, sessizce uygulanmaz.
-3. **Tam çıktı sahipliği:** Tek PTY için komutları seri yürütmek ve tek okuyucu/yazıcı kullanmak önerilir. Alınan baytlar komut aralığına göre akış halinde geçici dosyaya yazılır; başarılı tamamlanma ve başarılı dosya yazımı sonrası `last_output.log` yayımlanır. Bu, eşzamanlı komutları desteklemez. Ortak PTY'de arka plan işi aktif komut sırasında yazarsa baytların gerçek üreticisi ayırt edilemez; kayıt zaman aralığına aittir, kaynak komuta kesin atıf değildir. Komutlar arası baytlar ayrıca tutulabilir; sonradan gelen baytlar daha önce yayımlanmış dosyayı değiştirmez.
+1. **Eşik ve ölçümler:**
+   - Budama, sentinel çıkarıldıktan sonra ham çıktı `10_240` baytı **veya** `150` satırı aştığında yapılır; eşitlikte yapılmaz.
+   - Her tamamlanan komutun ham çıktısı geçici dosyaya akıtılır ve başarılı yazım sonrası `last_output.log` olarak yayımlanır.
+2. **Bağlam görünümü:** `LF` ayırıcıdır, CRLF tek satır sonudur, sonlandırılmamış son parça bir satır, boş çıktı sıfır satırdır. Mümkünse örtüşmeden ilk ve son 50 satır gösterilir. Kesilme bildirimi dahil yapılandırılabilir başlangıç sınırı **16 KiB**'dır; gerektiğinde uzun satır karakter sınırında kesilir. Geçersiz UTF-8 kayıplı ve açıkça belirtilmiş gösterilir; ham kayıt değişmez. Kullanıcı ADR-003'ün tam satır yorumuna bu istisnayı açıkça onayladı; kaynak ADR değiştirilmez. Bayt sınırı token garantisi değildir.
+3. **Tam çıktı sahipliği:** Tek PTY için komutlar seri yürütülür ve tek okuyucu/yazıcı kullanılır. Alınan baytlar komut aralığına göre geçici dosyaya yazılır; başarılı tamamlanma ve dosya yazımı sonrası `last_output.log` yayımlanır. Ortak PTY'de arka plan baytlarının gerçek üreticisi ayırt edilemez; kayıt zaman aralığına aittir. Sonradan gelen baytlar yayımlanmış dosyayı değiştirmez.
 4. **Yazma ve yayımlama hatası:** Disk dolması, izin veya I/O hatasında tam çıktı garantisi verilemez. Hata açıkça bildirilir, kısmi kayıt tam diye sunulmaz ve önceki başarılı `last_output.log` korunmaya çalışılır. Sınırsız çıktı kapasiteyi tüketebilir; isteğe bağlı durdurma politikası ancak çıktının eksik olduğunu açıkça bildirerek ve kullanıcı kararıyla uygulanabilir. Sabit boyutta sessiz kesme veya halka silme önerilmez.
 5. **Platform atomikliği:** Geçici dosya ve değiştirme işleminin atomiklik ve üzerine yazma semantiği dosya sistemi ve platforma bağlıdır. Windows'ta `rename` veya kopyanın atomik olduğu varsayılmaz; uygun API ve dosya sistemi davranışı için gerçek Windows kanıtı gerekir. Kanıt yoksa eşzamanlı okurlar için atomiklik açık karardır.
 
@@ -186,24 +243,27 @@ Model bağlamına giden çıktı:
 Girdi 2 (Tek satır, 25_000 bayt, sonunda 4 baytlık "🦀" UTF-8 karakteri sınırda denk geliyor):
   {"data":"aaaa...🦀...zzzz"}
 
-Karar bekleyen durum: Tam satırların iletilmesi bağlamı aşabilir. Bayt dilimleme ADR'ye istisna gerektirir; kullanıcı kararı olmadan kesin çıktı belirlenmez.
+Model bağlamına giden sınırlı görünüm (bu örnekte satır görünüm sınırını aşıyor):
+  <satırın karakter sınırında kesilmiş başı>
+  [... ferrocore: çıktı kesildi; tam ham çıktı: $FC_SCRATCH/last_output.log ...]
+  <satırın karakter sınırında kesilmiş sonu>
+Tam satır modele aktarılmaz; tamamı ham kayıtta saklanır. Başlangıç görünüm sınırı bildirim dahil 16 KiB'dır.
 ```
 
 ### Sınır durumları ve beklenen sonuçlar
 
 | Sınır durumu | Beklenen sonuç / karar durumu |
 | --- | --- |
-| 80 satır, 15 KB | İlk ve son 50 örtüşür; satırları tekrarlamama önerilir. Uzun satır için bağlam tavanı ADR yorumu/onayı bekler. |
-| Çok baytlı UTF-8 karakter sınırda | Bayt dilimleme onaylanırsa karakter ortasından kesilmez; ham kayıt korunur. |
-| İkili veya geçersiz UTF-8 | Ham kayıt baytları korur, model görünümü kayıplı olabilir. |
+| 80 satır, 15 KB | İlk ve son 50 örtüşür; satırlar tekrarlanmaz. Görünüm sınırı aşılırsa karakter sınırında baş/son gösterimi ve kesilme bildirimi kullanılır; tam ham çıktı saklanır. |
+| Çok baytlı UTF-8 karakter sınırda | Görünüm karakter ortasından kesilmez; ham kayıt korunur. |
+| İkili veya geçersiz UTF-8 | Ham kayıt baytları korur; model görünümü kayıplı dönüştürülür ve dönüşüm açıkça bildirilir. |
 | Arka plan işi aktif komut sırasında yazar | Ortak PTY'de kaynağı belirlenemez; aralık kaydına karışabilir ve bu sınırlama bildirilir. |
 | Disk dolu veya yazma başarısız | Kısmi dosya tam çıktı sayılmaz; hata döner ve önceki başarılı kayıt korunmaya çalışılır. |
 | Windows'ta eşzamanlı okuma ve değiştirme | Atomiklik garanti edilmez; API ve dosya sistemi için platform kanıtı gerekir. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- `10_240` bayt, satır sayımı ve örtüşmesiz görünüm kabul ediliyor mu? Uzun satırda ADR'nin 50+50 tam satır şartı mı, onaylı bayt sınırı mı öncelikli?
-- Her komutta mı yalnız eşik aşımında mı `last_output.log` yayımlansın? Dosya sistemi dolması, arka plan çıktısı ve Windows atomikliği için hangi politika seçilsin?
+10.240 bayt/150 satır aşımı, LF sayımı, her tamamlanan komutun ham kaydı ve 16 KiB sınırlı görünüm seçildi; ADR-003 tam satır istisnası onaylandı. Disk ve I/O hatalarında kısmi dosya tam veya yeni çıktı gibi sunulmaz; önceki dosya korunmaya çalışılır. Windows'ta eşzamanlı okur atomikliği platform ve dosya sistemi üzerinde sınanmadan garanti edilmez.
 
 ---
 
@@ -218,22 +278,23 @@ Karar bekleyen durum: Tam satırların iletilmesi bağlamı aşabilir. Bayt dili
 ### Öneri ve gerekçe
 
 1. **Sağlayıcı ve akış protokolü:**
-   - Faz 2 MVP için tek bir birincil protokol olarak **OpenAI uyumlu Chat Completions SSE (`POST {base_url}/chat/completions`, `stream: true`, `stream_options: {"include_usage": true}`)** önerilir; `base_url` ve `model` `config.toml` içinden okunur. Böylece ek sağlayıcı crate'leri açılmadan (YAGNI) OpenAI uyumlu uç noktalar tek istemciyle sınanabilir.
-   - SSE satırları UTF-8 akış çerçeveleyicisiyle parça sınırlarından bağımsız ayrıştırılır ve `data: [DONE]` ile kapanır.
+   - Faz 2 için yapılandırılabilir **Chat Completions SSE** profili seçildi; `base_url` ve `model` yapılandırılır. Hedef sağlayıcı ve modelle gerçek uyumluluk sınanmalıdır; bütün sağlayıcıların uyumu varsayılmaz.
+   - SSE UTF-8, parçalı giriş, satır sonları, yorumlar ve çoklu `data` satırlarını ele alır. `data: [DONE]` genel SSE standardı değil sağlayıcı sözleşmesidir; hedef sağlayıcı ile doğrulanmalıdır.
    - **Açık kanıt ihtiyacı:** Hedef sağlayıcının SSE sonunda `usage` nesnesini her durumda (özellikle hata/erken kesme dışında normal bitişte) gönderip göndermediği gerçek uç noktaya karşı doğrulanmalıdır. Yanıtta `usage` yoksa sürücü uydurma kesin token sayısı üretmez; kullanımı `UsageStatus::Unavailable` olarak kaydeder.
 2. **Kimlik bilgisi yönetimi:**
    - Gizli API anahtarı `config.toml` içine düz metin yazılmaz; yapılandırmada yalnızca ortam değişkeninin adı (`api_key_env = "FERROCORE_API_KEY"`) belirtilir.
    - Anahtar oturum başında okunur; hata mesajlarında, `Debug` çıktılarında ve `session.jsonl` kayıtlarında asla yer almaz.
-   - PTY alt kabuğunda çalışan komutların anahtarı kaza eseri dışarı sızdırmasını azaltmak için ilgili ortam değişkeninin çocuk PTY sürecine aktarılmaması (`env_remove`) önerilir.
+   - Anahtarın ortam değişkeni çocuk PTY sürecine aktarılmaz; bu diğer gizli kaynaklara erişimi engelleyen sandbox değildir.
 3. **Retry kapsamı ve üst sınırı:**
    - Yalnızca ilk içerik parçası (`delta`) tüketilmeden önce geçici ağ hataları veya HTTP `408`, `429`, `500`, `502`, `503`, `504` yeniden denenebilir. Sağlayıcı isteği işlemiş olabilir; delta gelmemesi maliyetsiz veya yinelenmemiş işlem garantisi değildir.
    - Kalıcı istemci, şema veya yetki hatalarında (`400`, `401`, `403`, `404`, `422`) yeniden deneme yapılmaz; doğrudan yapılandırılmış hata döner.
-   - Önerilen üst sınır: en fazla `3` yeniden deneme (toplam `4` deneme), `500 ms` taban bekleme, `2x` üstel artış, `8 s` tavan ve rastgele jitter (`Retry-After` başlığı varsa ve kalan zaman aşımını aşmıyorsa dikkate alınır).
+   - Yapılandırılabilir başlangıç üst sınırı: en fazla `3` yeniden deneme (toplam `4` deneme), `500 ms` taban bekleme, `2x` üstel artış, `8 s` tavan ve rastgele jitter (`Retry-After` başlığı varsa ve kalan zaman aşımını aşmıyorsa dikkate alınır).
    - SSE akışı başladıktan ve ilk `delta` döngüye/kayda iletildikten sonra bağlantı koparsa, yarım yanıtın üzerine sessiz otomatik tekrar yapılmaz; kısmi içerik kaydedilip `DriverError::StreamInterrupted` döndürülür.
 4. **Token bütçesi ve maliyet sayacı:**
    - Birincil bütçe kapısı `max_total_tokens` (`prompt_tokens + completion_tokens`) ve `max_turns` sınırlarıdır.
    - Maliyet sınırı (`max_cost_micros_usd`) yalnızca kullanıcı `config.toml` içinde `input_cost_per_million_micros` ve `output_cost_per_million_micros` değerlerini açıkça tanımladıysa hesaplanır; sağlayıcı fiyatları değişken olduğu için koda gömülü sabit fiyat listesi uydurulmaz.
    - Her tur öncesi kümülatif sayaç kontrol edilir; tur sonundaki kullanım eklenir. Limit aşılmışsa veya zorunlu kullanım bilgisi yoksa yanıt kaydedilir fakat içindeki komut yürütülmeden oturum durur. Sayaç yalnız tur sonunda kesinleştiğinden istek limitleri aşabilir; yanıt bayt tavanı token ya da maliyet için kesin sınır değildir. Kesin sınır için sağlayıcının token limiti ve fiyatlandırma kanıtı gerekir.
+   - Yapılandırılabilir başlangıç değerleri `max_turns = 20`, `max_total_tokens = 50_000`, `max_response_bytes = 1 MiB`'dır; ölçülmüş optimum veya kesin fatura sınırı değildir. Kullanıcı fiyatları yapılandırır; bilinmeyen ücretler kesin maliyet diye sunulmaz.
 5. **İptal (`Ctrl+C` ve zaman aşımı):**
    - `TurnDriver`, oturum genelinde paylaşılan bir iptal sinyaliyle (`CancellationToken`) hem aktif HTTP/SSE çağrısını hem beklemedeki retry zamanlayıcısını hem de aktif PTY komut bekleyişini keser.
    - Aktif komutta yalnız bekleyişi kesmek yeterli değildir: PTY çalışma zamanı komutu ve ilgili süreçleri durdurmayı dener, sonucu gözlemler ve başarısızlığı açıkça bildirir. Durdurma doğrulanamazsa başarı veya güvenli temizlik varsayılmaz; scratch korunur ve yeni komut başlatılmaz. Linux süreç grupları ve Windows ConPTY/çocuk süreç ağacı için kesin mekanizma ile ayrılmış arka plan süreçlerinin kapsamı platform kanıtı ve kullanıcı kararı bekler.
@@ -274,15 +335,13 @@ Akış senaryosu (Tur 4, önceki toplam kullanım = 48_900 token):
 | HTTP `401 Unauthorized` veya `400 Bad Request` | Kalıcı hata sayılır; retry yapılmadan oturum hata kaydıyla durur. |
 | HTTP `429` + `Retry-After: 120` ama kalan `session_timeout` `15 sn` | Bekleme süresi oturum zaman aşımını aştığı için beklenmez; zaman aşımı/oran sınırı hatasıyla çıkılır. |
 | İlk `delta` alındıktan sonra TCP bağlantısı kopar | Otomatik tekrar yapılmaz; kısmi çıktı `StreamInterrupted` olarak kaydedilir ve görev durur. |
-| Sağlayıcı `usage` vermez | Zorunlu token veya maliyet bütçesinde öneri `UsageUnavailable` ile durmak ve komutu yürütmemektir; farklı politika kullanıcı kararı gerektirir. |
-| Retry beklemesi veya aktif SSE sırasında kullanıcı `Ctrl+C` basar | Bekleme/istek anında iptal edilir, yeni deneme açılmaz, `Cancelled` kaydı yazılıp scratch temizlenir (Windows ConPTY davranışı sınanmalıdır). |
-| Aktif komut iptalden sonra çalışmayı sürdürür veya durdurma doğrulanamaz | İptal tamamlandı diye sunulmaz; hata ve belirsiz süreç durumu bildirilir, scratch korunur. |
+| Sağlayıcı `usage` vermez | Zorunlu token veya maliyet bütçesinde `UsageUnavailable` ile durulur, yanıt kaydedilir ve komut yürütülmez. |
+| Retry beklemesi veya aktif SSE sırasında kullanıcı `Ctrl+C` basar | Bekleme/istek iptal edilir, yeni deneme açılmaz, `Cancelled` kaydedilir; ilgili süreçler durduysa scratch temizlenmeye çalışılır, doğrulanamazsa korunur. Windows davranışı sınanmalıdır. |
+| Aktif komut iptalden sonra çalışmayı sürdürür veya durdurma doğrulanamaz | İptal tamamlandı diye sunulmaz; hata ve belirsiz süreç durumu bildirilir, scratch korunur ve yolu bildirilir. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- Faz 2 MVP için yalnızca OpenAI uyumlu Chat Completions SSE protokolünün hedeflenmesi ve API anahtarının yalnız ortam değişkeninden okunup PTY ortamından çıkarılması uygun mu?
-- Sağlayıcı `usage` verisi döndürmediğinde ve bütçe sınırı açık olduğunda oturum sert hatayla mı durmalı, yoksa yalnız `max_turns` / `max_response_bytes` sınırıyla devam mı etmeli?
-- Akış ortası (`delta` sonrası) ağ kopmalarında otomatik tekrar yapılmaması kuralı onaylanıyor mu?
+Chat Completions SSE, ortamdan anahtar, delta öncesi seçili geçici hatalarda 3 retry / 500 ms / 2× / 8 s ve jitter, kısmi içerikten sonra tekrar yapmama, zorunlu kullanım eksikliğinde durma ve ortak iptal seçildi. `Retry-After` ve kalan süre dikkate alınır; önceki deneme ücret doğurmuş olabilir. Adım ve oturum sürelerinin sayısal değerleri burada seçilmedi. Yerel HTTP iptali sağlayıcının üretimi veya ücretlendirmeyi durdurduğunu kanıtlamaz. Sağlayıcı/model uyumu ve süreç ağacı platformlarda doğrulanmalıdır.
 
 ---
 
@@ -344,10 +403,9 @@ Tek turluk kontrol akışı:
 | Döngü tamamlanma üretmeden sürekli `TurnOutcome::Continue` döndürür | `TurnDriver` üzerindeki `max_turns` veya `max_total_tokens` sınırı devreye girer; sonsuz döngü önlenir. |
 | `ferrocord::Context` içinden servis alınırken `.await` çağrısı gerekir | Servis referansı önce yerel `Arc<T>` değişkenine klonlanır, kilit kapsamı kapanır, `.await` yalnızca klonlanan `Arc<T>` üzerinde çalıştırılır. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- `AgentLoop` uygulamasının doğrudan LLM ve JSONL erişimi yapmaması, tüm LLM/bütçe/kayıt akışının `TurnDriver` mülkiyetinde kalması kabul ediliyor mu?
-- Faz 2'de `ferrocore-types` içinde `Tool` sözleşmesinin yalnız soyut çekirdek tanım olarak bırakılıp kayıt/adaptör katmanının Faz 4'e ertelenmesi onaylanıyor mu?
+`types` I/O'suz sözleşmeleri, `TurnDriver` LLM/bütçe/iptal/kayıt sahipliğini, döngü komut/bitiş/biçim hatası üretimini üstlenir; `Tool` asgari soyut sözleşmedir. PTY arayüzü yürütme ve canlı durum görüntüsünü sağlar; bilinmeyen değerler açıkça gösterilir. Kesin async imzalar ve trait nesnesi uyumu, `ferrocord` kaynak API'si ve derleme ile doğrulanmalıdır.
 
 ---
 
@@ -363,7 +421,7 @@ Tek turluk kontrol akışı:
 
 1. **Sabit üst seviye alanlar ve tipleri:**
    - ADR-007'deki 6 alan değiştirilmeden ve üst seviyeye fazladan alan eklenmeden şu tipler önerilir:
-     - `id`: `String` — oturum içinde benzersiz kayıt kimliği; UUIDv7 adaydır, rastgele çakışma olasılığı sıfır değildir ve yinelenen kimlik reddedilmelidir.
+     - `id`: `String` — oturum içinde benzersiz UUIDv7 kayıt kimliği; rastgele çakışma olasılığı sıfır değildir ve yinelenen kimlik reddedilmelidir.
      - `parent_id`: `String | null` (`Option<String>`) — bu kaydın doğrudan nedensel öncülü olan kaydın `id` değeri.
      - `agent_depth`: `u32` — Faz 2 MVP'de kök ajan için her zaman `0` (Faz 3 alt ajanlarında `1, 2, ...` değerlerini almaya hazır, ancak Faz 3 spawn sözleşmesi burada tanımlanmaz).
      - `loop_type`: `String` — kaydı üreten döngü kimliği (Faz 2'de `"rlm"`).
@@ -378,7 +436,7 @@ Tek turluk kontrol akışı:
    - Dosya tanımlayıcısının tek sahibi `ferrocore-driver` içindeki **`SessionLogWriter`** görevidir. Üreticiler kayıt nesnelerini sınırlı bir bellek içi kanala iletir; `SessionLogWriter` her kaydı tek satırlık UTF-8 JSON'a (içerideki yeni satırlar `\n` olarak JSON kaçışlı, satır sonu tek `LF` `\n`) serileştirip sırayla yazar.
 4. **Atomiklik sınırı ve kısmi satır davranışı:**
    - Standart dosya sistemlerinde çok baytlı satır ekleme işlemi süreç çökmesi (`SIGKILL`) veya güç kaybına karşı **atomik değildir**; en sondaki satır diske yarım yazılmış kalabilir.
-   - Her kayıt tamponlanıp sırayla yazılır ve `flush` edilir; `session_start` ve `session_end` / hata kapanış kayıtlarında `sync_data` çağrılması önerilir. Kısmi yazma ve eşitleme hataları bildirilir; `flush` veya `sync_data` her platform ve depolama aygıtında güç kaybına karşı mutlak garanti değildir.
+   - Her kayıt tamponlanıp sırayla yazılır ve `flush` edilir; başlangıç, kapanış ve her tur sonunda `sync_data` seçildi. Kısmi yazma ve eşitleme hataları bildirilir; `flush` veya `sync_data` güç kaybına karşı mutlak garanti değildir.
    - Dosya ortasında bozuk JSON veya tanımsız `parent_id` veri bozulmasıdır. En sondaki satır `\n` içermiyorsa kesilmiş olabilir ve açıkça raporlanır; son satır yeni satırla bitiyor ama JSON geçersizse bozulmadır. Dosya sessizce değiştirilmez.
 
 ### Önemli bedel
@@ -404,11 +462,9 @@ Tek yazıcı yüksek olay hızında kuyruk ve geri basınç oluşturabilir. Daha
 | Süreç `SIGKILL` alırken son satır yarım yazılır (`{"id":"019...` ve sonunda `\n` yok) | Okuyucu bunu sessizce yok saymaz; `TruncatedTailLine` olarak bildirir ve önceki tam kayıtları ayrıştırılabilir tutar. |
 | Yazma sırasında disk dolar (`ENOSPC`) veya izin hatası oluşur | `SessionLogWriter` hatayı `TurnDriver`'a iletir; kayıtsız sessiz yürütme yapmamak için oturum kayıt hatasıyla durdurulur. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- `id` için UUIDv7 dizgesi, kök kayıtta `parent_id: null` ve `payload` içinde `{"v": 1, "kind": ..., "data": ...}` zarfı onaylanıyor mu?
-- `session.jsonl` yazma hatası (`ENOSPC` vb.) oluştuğunda oturumun derhal durdurulması mı, yoksa bellek içi uyarı verip kayıtsız devam etmesi mi tercih ediliyor?
-- Dayanıklılık için `fsync` yalnızca oturum açılış/kapanışında mı, yoksa her tur sonunda mı çalıştırılsın?
+UUIDv7, yalnız kökte null ebeveyn, altı alan ve `payload` v1 zarfı, sınırlı kuyruklu tek yazıcı ve başlangıç/kapanış ile her tur sonunda `sync_data` seçildi. Yazma hatası yeni yan etkileri durdurur; kısmi satır raporlanır ve sessizce silinmez. UUID sırası nedensellik kanıtı değildir; ebeveyn ve dosya sırası esastır. Niyet kaydı yürütme veya güç kaybına dayanıklılık kanıtı değildir; kayıt izinleri ve redaksiyon uygulamada netleştirilmelidir.
 
 ---
 
@@ -423,20 +479,21 @@ Tek yazıcı yüksek olay hızında kuyruk ve geri basınç oluşturabilir. Daha
 ### Öneri ve gerekçe
 
 1. **Kanonik eylem ve tamamlanma etiketleri:**
-   - Açıklama amaçlı Markdown kod çitlerinin yanlışlıkla çalışmasını azaltmak için yürütülebilir biçim olarak kendi satırında açılıp kapanan **`<sh>\n...\n</sh>`**, bitiş için **`<final>\n...\n</final>`** önerilir. Açıklama içindeki etiketler de ayırt edilemeyebilir; açık dilbilgisi ve model uyumu sınanmalıdır.
+   - Yürütülebilir biçim olarak kendi satırında ve sıfır girintili **`<sh>\n...\n</sh>`**, bitiş için **`<final>\n...\n</final>`** seçildi. Açıklama içindeki etiketler de ayırt edilemeyebilir; model uyumu sınanmalıdır.
    - Etiket dışındaki düz açıklama metni JSONL kaydında saklanır, PTY'ye gönderilmez. Eylem etiketleri yalnız Markdown kod çitleri dışında tanınır; çitin içindeki `<sh>` ve `<final>` örnekleri çalıştırılmaz. Kapanmamış veya belirsiz çitte hata verilir, eylem yürütülmez.
    - **Etiket kaçış kuralı:** Komut gövdesinde literal `</sh>` metni geçmesi gerekiyorsa satır içi kullanımlar (ör. `echo "</sh>"`) kapanış sayılmaz; yalnızca başında/sonunda boşluk olmadan tek başına satır oluşturan `\n</sh>\n` (veya yanıt sonundaki `\n</sh>`) kapanış kabul edilir.
+   - Tek başına `</sh>` satırı gerekiyorsa modele kabukta eşdeğer farklı yazım üretmesi söylenir; ayrıştırıcı kodu sessizce değiştirmez.
    - **Açık kanıt ihtiyacı:** Hedef modelin (`deepseek-chat` vb.) sistem istemiyle `<sh>...</sh>` ve `<final>...</final>` biçimine uyum oranı bu depoda henüz ölçülmemiştir; uygulama başında küçük bir istem doğrulama setiyle sınanmalıdır.
 2. **Tur başına tek eylem kuralı:**
    - Kalıcı kabukta bir komutun çıktısı ve çıkış kodu bir sonraki komutu doğrudan etkilediği için her turda **yalnızca tek bir `<sh>...</sh>` bloğu** veya **tek bir `<final>...</final>` bloğu** geçerli kabul edilir.
    - Aynı yanıtta birden fazla `<sh>` bloğu ya da hem `<sh>` hem `<final>` bulunursa **hiçbir komut PTY'ye gönderilmez**; modele biçim hatası bildirilir.
 3. **Canlı durum başlığı (Stateful Header) üretimi:**
-   - Her başarılı/başarısız PTY adımından sonra bir sonraki tur girdisine deterministik bir durum özeti eklenir: son bilinen `PWD`, son `exit_code`, varsa kabuktaki arka plan iş sayısı (`jobs`) ve `$FC_SCRATCH` içindeki üst düzey dosya adları (çok sayıda dosya varsa bağlamı şişirmemek için ilk `N` giriş + toplam sayı özeti).
+   - Her PTY adımından sonra `PWD`, son `exit_code`, `jobs` ve scratch dosyaları durumu eklenir; bilinmeyen ve son bilinen değerler ayrılır. Scratch için sıralı ilk `20` giriş ve toplam sayı yapılandırılabilir başlangıçtır. Başlık sorgusunun `$?` ve kabuk durumunu koruması platformda sınanmalıdır.
    - Kabuk süreci kapanmışsa (`ShellExited`) canlı kabuk sorgusu çalıştırılamaz; başlıkta `shell_status: exited` ve son bilinen değerler gösterilir.
 4. **Hatalı ve yarım model yanıtı davranışı:**
    - Şu durumlar **hatalı model yanıtı (`MalformedModelOutput`)** sayılır: (a) `<sh>` açılıp `</sh>` ile kapanmaması (ör. `max_tokens` nedeniyle kesilmiş yanıt), (b) yalnızca boşluk içeren `<sh></sh>` bloğu, (c) yanıtta ne `<sh>` ne `<final>` bulunması, (d) aynı yanıtta birden fazla eylem/bitiş bloğu bulunması.
-   - **Önerilen güvenlik kuralı:** Kapanmamış veya belirsiz bir `<sh>` bloğu kısmen PTY'de çalıştırılmaz.
-   - Hatalı yanıtta döngü `TurnDriver` üzerinden modele kısa ve yapılandırılmış bir biçim düzeltme mesajı döndürür. Ardışık düzeltme denemesi `max_format_retries` (öneri: `2`) ile sınırlandırılır; bu turlar da normal token bütçesine ve `session.jsonl` kaydına dahildir. Sınır aşılırsa oturum `StopReason::MalformedModelOutput` ile sonlandırılır.
+   - Yanıt bütünü ve bitiş nedeni kontrol edilmeden, yarım veya belirsiz bloktan hiçbir eylem çalıştırılmaz.
+   - Bozuk yanıtta en fazla `2` ardışık biçim düzeltme turu uygulanır; bunlar bütçeye ve kayda dahildir. Sınır aşılırsa `StopReason::MalformedModelOutput` ile durulur.
 
 ### Önemli bedel
 
@@ -445,12 +502,12 @@ Yalnız `<sh>` kabul etmek Markdown çiti üreten modellerde düzeltme turu ve t
 ### Örnek girdi / çıktı
 
 ```text
-Örnek 1 — Geçerli RLM turu:
-  Model yanıtı:
-    Çalışma dizinindeki Cargo manifestini kontrol ediyorum.
-    <sh>
-    cargo metadata --no-deps --format-version 1 | head -c 300
-    </sh>
+Örnek 1 — Geçerli RLM turu (aşağıdaki model yanıtı satırları gerçek sıfır girintili girdidir):
+Model yanıtı:
+Çalışma dizinindeki Cargo manifestini kontrol ediyorum.
+<sh>
+cargo metadata --no-deps --format-version 1 | head -c 300
+</sh>
 
   Ayrıştırıcı sonucu:
     Action::ExecShell("cargo metadata --no-deps --format-version 1 | head -c 300")
@@ -459,11 +516,11 @@ Yalnız `<sh>` kabul etmek Markdown çiti üreten modellerde düzeltme turu ve t
     [ferrocore-state pwd="/workspace/ferrocore" last_exit=0 bg_jobs=0 scratch=["last_output.log"]]
     <komut çıktısı veya budanmış görünüm>
 
-Örnek 2 — Kapanmamış (max_tokens ile kesilmiş) model yanıtı:
-  Model yanıtı:
-    Geçici derleme dosyalarını temizleyelim:
-    <sh>
-    rm -rf target/debug/build/
+Örnek 2 — Kapanmamış model yanıtı (gerçek sıfır girintili girdi):
+Model yanıtı:
+Geçici derleme dosyalarını temizleyelim:
+<sh>
+rm -rf target/debug/build/
 
   Ayrıştırıcı sonucu:
     Action::Malformed("Unclosed <sh> block; nothing was executed.")
@@ -482,7 +539,22 @@ Yalnız `<sh>` kabul etmek Markdown çiti üreten modellerde düzeltme turu ve t
 | Komut içinde heredoc veya metin olarak `echo "</sh>"` geçer | Satır içi `</sh>` kapanış sayılmaz; yalnız tek başına satır olan `</sh>` bloğu kapatır. Komut tek satırda `</sh>` yazmaya çalışırsa kapanış çakışması nedeniyle kullanıcı/model kaçışı gerekir. |
 | Model ardışık `3` tur bozuk yanıt üretir (`max_format_retries = 2` aşılır) | Oturum `StopReason::MalformedModelOutput` ile durdurulur ve hata `session.jsonl`'e kaydedilir. |
 
-### Uygulama öncesi kullanıcı kararı
+### Onaylanan karar ve doğrulama
 
-- Yalnızca `<sh>...</sh>` ve `<final>...</final>` etiketlerinin kabul edilmesi (serbest ` ```bash ` bloklarının otomatik çalıştırılmaması) onaylanıyor mu?
-- Bozuk model yanıtlarında ardışık düzeltme sınırı (`max_format_retries = 2`) ve yarım bloğun hiçbir koşulda çalıştırılmaması politikası uygun mu?
+Sıfır girintili tek `sh` veya `final`, Markdown çitlerinin dışlanması, yarım/bloke yanıtın yürütülmemesi, iki düzeltme turu ve sıralı ilk 20 scratch girdisi seçildi. Model uyumu ve canlı durum sorgusunun kabuk durumunu koruması doğrulanmalıdır.
+
+## Faz 2 karar paketi
+
+Kullanıcı aşağıdaki seçimleri onayladı; sayılar yapılandırılabilir başlangıç değerleri, kanıt ihtiyaçları ise devam eden kabul koşullarıdır. Onay uygulamanın veya platform garantisinin kanıtı değildir.
+
+| Konu | Onaylanan seçim | Kalan kanıt ve sınırlar |
+| --- | --- | --- |
+| (a) Kabuk ve scratch | `bash --noprofile --norc -i`, `pwsh -NoLogo -NoProfile`, 5 sn; `/dev/shm` → `/tmp`; belirsiz duruşta scratch korunur | Windows ACL, süreç ağacı, temizleme doğrulanmalı |
+| (b) Sentinel | Güvenilir komut varsayımı; Linux RS/US ve Windows ASCII, tek okuyucu, Linux echo kapatma denemesi | Her iki aday platform kabul testlerine bağlı; nonce kimlik doğrulamaz, echo ve VT sınanmalı |
+| (c) Çıktı | >10240 bayt veya >150 satır, LF; 50+50 ve 16 KiB görünüm; her komutta ham dosya; ADR-003 istisnası onaylı | Windows atomikliği ve I/O; arka plan çıktısı sahibinin bilinmemesi |
+| (d) LLM ve iptal | Chat Completions SSE; 3 retry/500 ms/2×/8 s+jitter; usage yokluğunda duruş; 20 tur/50000 token/1 MiB örnekleri; ortak iptal | Sağlayıcı uyumu, ücretler ve süreç ağacı doğrulanmalı |
+| (e) API | I/O'suz types, ortak driver, eylem üreten loop ve PTY durum arayüzü | Trait imzaları ve ferrocord uyumu doğrulanmalı |
+| (f) JSONL | Altı alan, UUIDv7, tek yazıcı, her tur `sync_data` | Güç kaybı ve tam bir kez yürütme garantisi yok |
+| (g) RLM | Sıfır girintili tek sh/final, iki düzeltme, canlı başlık ilk 20 | Model uyumu ve canlı durum sorgusu sınanmalı |
+
+Bağımlılıklar karşılıklı olabilir; tablo çözüm gerektiren sınırları gösterir, kesin uygulama sırası değildir. Faz 2 dışındaki spawn/IPC ve eklenti sözleşmeleri bu paketle karara bağlanmaz.

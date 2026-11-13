@@ -4,7 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
+members = [
+    "crates/ferrocore-types",
+    "crates/ferrocore-driver",
+    "crates/ferrocore-runtime-pty",
+    "crates/ferrocore-loop-rlm",
+]
 resolver = "2"
 
 [dependencies]
 ferrocord = { git = "https://github.com/FerroCord/ferrocord.git", rev = "ae07423923b0934b0235d00fcd97c2bffeadd9ee" }
+ferrocore-types = { path = "crates/ferrocore-types" }
+ferrocore-driver = { path = "crates/ferrocore-driver" }
+ferrocore-runtime-pty = { path = "crates/ferrocore-runtime-pty" }
+ferrocore-loop-rlm = { path = "crates/ferrocore-loop-rlm" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "signal", "time", "macros"] }
+tokio-util = "0.7"

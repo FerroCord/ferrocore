@@ -1,17 +1,17 @@
 # ferrocore
 
-ferrocore, [ferrocord](https://github.com/FerroCord/ferrocord) mikro-çekirdeği üzerine kurulması planlanan otonom yazılım geliştirme ajanıdır. Hedef, ana ürünün Node.js veya Python çalışma zamanı gerektirmeyen tek bir Rust ikilisi olarak dağıtılmasıdır. Kullanıcının çalıştırdığı araçlar ve harici eklentiler kendi bağımlılıklarına sahip olabilir.
+ferrocore, [ferrocord](https://github.com/FerroCord/ferrocord) mikro-çekirdeği üzerine kurulu bir otonom yazılım geliştirme ajanıdır. Ana ürün için Node.js veya Python çalışma zamanı gerekmez; görev yürütmek için ayrıca platform kabuğu ve görevin kullandığı kullanıcı araçları gerekir.
 
 ## Durum
 
-Rust 2021 Cargo workspace ve gerçek ferrocord servis/olay yolunu sınayan küçük bir tanılama CLI'sı vardır. Bağımlılık `ae07423923b0934b0235d00fcd97c2bffeadd9ee` Git commit'ine sabitlenmiştir. Linux ve Windows hedeflenir; tanılama ve süreç testleri Windows üzerinde çalıştırılmıştır, Linux üzerinde henüz doğrulanmamıştır. Faz 2 MVP tamamlanmadı; LLM, PTY, sentinel ve RLM uygulanmadı. CI henüz yoktur.
+Workspace, ferrocord tanılaması ve LLM, oturum kaydı, kalıcı PTY ve RLM üzerinden görev yürütmesi içerir. Bağımlılık `ae07423923b0934b0235d00fcd97c2bffeadd9ee` Git commit'ine sabitlenmiştir. Linux ve Windows hedeflenir; gerçek sağlayıcı/model uyumu ve her iki platformun tüm kabul koşulları ayrıca doğrulanmalıdır. Alt ajanlar, ReAct ve dış eklenti adaptörleri henüz uygulanmadı.
 
 - Ana depo: <https://github.com/FerroCord/ferrocore>
 - Bağımsız çekirdek: <https://github.com/FerroCord/ferrocord>
 - Organizasyon: <https://github.com/FerroCord>
 - Kaynak ilerleme kaydında iki deponun başlangıç görünürlüğü `PRIVATE` olarak doğrulanmıştır. Görünürlük değişikliği ayrıca onay gerektirir.
 
-## Mimari özeti
+## Mimari özeti ve hedefler
 
 - `ferrocore-types`: `AgentLoop`, `Tool`, `Session` sözleşmeleri ve veri modelleri.
 - `ferrocore-driver`: ortak LLM (büyük dil modeli) akışı, yeniden deneme, bütçe, iptal ve oturum kaydı.
@@ -20,7 +20,7 @@ Rust 2021 Cargo workspace ve gerçek ferrocord servis/olay yolunu sınayan küç
 - `ferrocore-loop-react`: yapılandırılmış araç çağrılarıyla çalışan kardeş döngü.
 - `ferrocore-tools`: MCP uyumlu süreçler arası iletişim ve WebAssembly adaptörleri.
 
-Birinci parti modüller bu depoda Cargo workspace içinde geliştirilecek. Harici `ferrocore-plugin-*` depoları ihtiyaç oldukça ayrı açılacak.
+Listede uygulanan modüllerin yanında planlanan modüller de vardır. Birinci parti modüller Cargo workspace içinde; harici `ferrocore-plugin-*` depoları ihtiyaç oldukça ayrı planlanır.
 
 ## Belgeler
 
@@ -35,13 +35,23 @@ Birinci parti modüller bu depoda Cargo workspace içinde geliştirilecek. Haric
 
 ## Geliştirmeye başlama
 
-Tanılama komutu:
+Rust stable ile derleme için Cargo ve bağımlılıkların erişilebilir olması gerekir. `run`, Linux'ta PATH üzerinde `bash`, Windows'ta PATH üzerinde PowerShell 7 (`pwsh.exe`) gerektirir; modelin çalıştırdığı komutların araçları ayrıca kurulmalıdır. `check` yalnız ferrocord Context/EventBus entegrasyonunu sınar; sağlayıcı, kabuk veya görev yürütmesini sınamaz:
 
 ```sh
 cargo run -- check
 ```
 
-Başarılı sonuç `ferrocord integration: ok` satırıdır. Doğrulama komutları:
+Başarılı sonuç `ferrocord integration: ok` satırıdır. Görev çalıştırmak için `config.example.toml` dosyasını kopyalayıp `[llm]` içindeki `base_url` ve `model` değerlerini sağlayıcınıza göre düzenleyin. `api_key_env` değerinin adlandırdığı ortam değişkenine anahtarı koyun; anahtarı yapılandırma dosyasına yazmayın. Yalnız `active_loop = "rlm"` desteklenir. Bütçe, PTY ve oturum günlüğü ayarları örnek dosyadadır. Örnek URL gerçek bir sağlayıcı değildir.
+
+Örnek yapılandırmadaki `./sessions` dizinini çalıştırmadan önce oluşturun (`mkdir sessions`). Windows'ta bu dizinin kalıtılan erişim izinleri yalnız kullanıcı, SYSTEM ve Administrators için güvenli biçimde doğrulanabilmelidir; doğrulanamayan ACL oturumu başlatmaz.
+
+```sh
+cargo run -- run --config config.toml "Görev açıklaması"
+```
+
+Bu komut modelin ürettiği kabuk komutlarını çalıştırabilir; yalnız güvendiğiniz ortamda kullanın. `--` seçenek sonlandırıcısıyla tireyle başlayan görev veya dosya adı verilebilir. Tam komut çıktısı `$FC_SCRATCH/last_output.log` içinde ham ve redakte edilmeden saklanır; gizli veriler içerebilir. Süreç ağacının durduğu kanıtlanamazsa scratch korunabilir; erişimini ve temizliğini ayrıca yönetin. JSONL kaydında bilinen API anahtarının tam eşleşmelerinin redakte edilmesi diğer gizli verilerin korunacağını garanti etmez.
+
+Yerel doğrulama komutları:
 
 ```sh
 cargo fmt --all -- --check

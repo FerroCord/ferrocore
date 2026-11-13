@@ -23,16 +23,18 @@ Bu faz [ferrocord deposunda](https://github.com/FerroCord/ferrocord) yürütül�
 
 ## Faz 2 — ferrocore MVP: driver, PTY ve RLM
 
-Tanılama workspace'i ve `cargo run -- check` ile gerçek Context/EventBus entegrasyonu hazırdır. Windows üzerinde çalıştırıldı; Linux hedefi henüz doğrulanmadı. Bu adım Faz 2 MVP kabul ölçütlerini karşılamaz. Uygulamayı engelleyen açık sözleşmeler için [onay bekleyen Faz 2 sözleşme önerileri taslağı](phase2-contract-proposals.md) hazırlanmıştır.
+Workspace, `cargo run -- check` ile gerçek Context/EventBus tanılamasını ve `cargo run -- run --config <dosya> <görev>` ile yapılandırılmış LLM, RLM, oturum kaydı ve PTY yolunu içerir. `check` görev yürütmesini veya sağlayıcıyı doğrulamaz. [Faz 2 sözleşme kararları](phase2-contract-proposals.md) ve [açık kararlar](open-questions.md#uygulama-öncesi-sözleşmeler) tasarım ve kanıt sınırları için başvuru kaynaklarıdır.
 
-- [ ] Yalnızca gereken crate'lerle Cargo workspace ve ana CLI iskeletini oluştur.
-- [ ] `ferrocore-types` içinde AgentLoop, Tool ve Session veri sözleşmelerini tanımla.
-- [ ] `ferrocore-driver`: LLM akışı, retry/backoff, bütçe ve maliyet sınırları.
-- [ ] Ortak Ctrl+C/zaman aşımı iptali ve JSONL kayıt akışını oluştur.
-- [ ] `ferrocore-runtime-pty`: kalıcı kabuk ve netleşmiş sentinel ayrıştırıcısı.
-- [ ] `$FC_SCRATCH`, tam çıktı kaydı ve 10 KB / 150 satır bağlam budamasını uygula.
-- [ ] `ferrocore-loop-rlm`: ham kod ayrıştırma, canlı terminal bağlamı ve yürütme.
-- [ ] `config.example.toml` ve `active_loop` seçimini belgele.
+Linux ve Windows hedeflenir; gerçek sağlayıcı/model uyumu ve platform kabul koşulları ayrıca doğrulanmalıdır. Windows'ta karmaşık veya çıkış durumu kanıtlanamayan komutlar hata verir. Linux'ta ayrılmış süreçlerin duruşu kesin kanıtlanamaz; bu durumda scratch korunabilir. Ham scratch çıktısı redakte edilmez ve gizli veri içerebilir. Node.js veya Python ana ürün için gerekmez; Linux'ta `bash`, Windows'ta `pwsh.exe` ve görevlerin çağırdığı araçlar ayrı ön koşullardır.
+
+- [x] Gereken crate'lerle Cargo workspace ve ana CLI oluştur.
+- [x] `ferrocore-types` içinde AgentLoop, Tool ve Session veri sözleşmelerini tanımla.
+- [x] `ferrocore-driver`: LLM akışı, retry/backoff, bütçe ve maliyet sınırları.
+- [x] Ortak Ctrl+C/zaman aşımı iptali ve JSONL kayıt akışını oluştur.
+- [x] `ferrocore-runtime-pty`: kalıcı kabuk ve sentinel ayrıştırıcısı.
+- [x] `$FC_SCRATCH`, tam çıktı kaydı ve 10 KB / 150 satır bağlam budamasını uygula.
+- [x] `ferrocore-loop-rlm`: ham kod ayrıştırma, canlı terminal bağlamı ve yürütme.
+- [x] `config.example.toml` ve `active_loop` seçimini belgele.
 - [ ] Test ve ikili derleme CI hattını ekle; dağıtım bağımlılıklarını kontrol et.
 
 **Kabul ölçütleri:** Ardışık komutlarda kabuk durumu korunur; başarısız komutun çıkış kodu doğru alınır. Sentinel her byte sınırında parçalanmış girişle sınanır. İptal, zaman aşımı, kabuk kapanışı, büyük çıktı, bozuk model yanıtı, LLM akış hatası ve bütçe tükenmesi test edilir. JSONL alanları ve ebeveyn ilişkileri doğrulanır. Çalışan bir RLM görevi uçtan uca gösterilir.
@@ -75,4 +77,4 @@ Kaynakta MCTS, faz tablosunda 5+, uygulama fazları bölümünde Faz 5 olarak ge
 - [ ] Ölçülmüş darboğazları, kaynak sınırlarını ve doğrulanmamış noktaları raporla.
 - [ ] Yayınlama, push, birleştirme ve silme gibi yan etkili işlemler için gerekli kullanıcı onayını al.
 
-Mevcut test paketi gerçek CLI süreçlerini sınar; diğer fazların kabul ölçütleri henüz uygulanmadı.
+Mevcut test paketi gerçek CLI süreçlerini sınar; testlerin varlığı gerçek sağlayıcıyla veya her platformda kabul doğrulaması yapıldığını göstermez. Diğer fazların kabul ölçütleri henüz uygulanmadı.

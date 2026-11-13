@@ -1,21 +1,22 @@
 # Açık kararlar, belirsizlikler ve kaynak sınırları
 
-Bu liste, [özgün ADR](reference/architecture-decisions-2026-10-31.md) ve üst çalışma rehberinde eksik bırakılan uygulama ayrıntılarını görünür kılar. Aşağıdaki test ve karar başlıkları uygulama hazırlığıdır; kesinleşmiş yeni mimari kararlar olarak değerlendirilmemelidir.
+Bu liste [özgün ADR](reference/architecture-decisions-2026-10-31.md) sınırlarını ve uygulama öncesi doğrulanacak ayrıntıları görünür kılar. Kullanıcı [Faz 2 karar paketini](phase2-contract-proposals.md#faz-2-karar-paketi) onayladı; bu, kaynak ADR kopyasını değiştirmez ve test edilmemiş davranışı doğrulanmış yapmaz.
 
-Mevcut tanılama CLI'sı `cargo run -- check` ile çalıştırılır ve ferrocord `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine bağlıdır. Linux ve Windows hedeflenir; Windows üzerinde çalıştırıldı, Linux doğrulanmadı. Faz 2 MVP tamamlanmadı; aşağıdaki LLM, sentinel ve platform sözleşmeleri açık kalır. Faz 2 kapsamındaki başlıklar için değerlendirmeye sunulan öneriler [Faz 2 sözleşme önerileri taslağında](phase2-contract-proposals.md) toplanmıştır; kullanıcı onayı alınana kadar bu kararlar açık kalır.
+Mevcut tanılama CLI'sı `cargo run -- check` ile çalıştırılır ve ferrocord `ae07423923b0934b0235d00fcd97c2bffeadd9ee` commit'ine bağlıdır. Windows üzerinde çalıştırıldı, Linux doğrulanmadı; Faz 2 MVP tamamlanmadı.
 
 ## Uygulama öncesi sözleşmeler
 
 | Konu | Netleştirilecek ayrıntı | Etkilenen faz |
 | --- | --- | --- |
-| Sentinel | Byte/kaçış biçimi, komut kimliği, çakışma önleme, çıkış kodu, bozuk/yarım çerçeve davranışı | 2 öncesi |
-| Kabuk ve platform | POSIX kabuk seçimi; Windows PTY, kabuk, IPC ve scratch davranışı; destek matrisi | 2–3 |
-| Scratch | `/dev/shm` yokluğu veya yetersizliği, izinler, yaşam süresi ve temizlik | 2 |
-| Çıktı budama | 10 KB ölçümü, uzun tek satır, UTF-8 sınırı, 50+50 satır örtüşmesi, eşzamanlı `last_output.log` sahipliği | 2 |
-| Ortak API | AgentLoop, Tool, Session imzaları; async ve hata tipleri; config şeması | 2 |
-| LLM | Sağlayıcı, akış protokolü, kimlik bilgisi yönetimi, yeniden deneme kapsamı ve üst sınırı | 2 |
-| Bütçe | Token/maliyet hesaplama, limit aşımı ve iptal davranışı | 2 |
-| JSONL | Alan tipleri, kök `parent_id`, kimlik/sürüm, yazma sahipliği, sıralama ve kısmi satır kurtarma | 2–3 |
+| Sentinel | Güvenilir komut varsayımı ve Linux RS/US, Windows ASCII adayları seçildi; platform kabul testleri, echo, VT, parçalanma ve PowerShell çıkış semantiği doğrulanmalı. Nonce kimlik doğrulamaz. [Deney sonuçları](phase2-contract-proposals.md#platform-deneyi-ön-koşul-sonuçları). | 2 öncesi |
+| Kabuk ve platform | Bash/pwsh ve 5 sn başlangıç seçildi; Windows ACL, kabuk ve PTY davranışı doğrulanmalı. IPC Faz 3 sınırındadır. [Paket (a), (b)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2–3 |
+| Scratch | Linux `/dev/shm` → `/tmp` ve süreç duruşu belirsizse koruma seçildi; süreç ağacı ve güvenli temizlik doğrulanmalı. [Paket (a)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2 |
+| Çıktı budama | >10240 bayt veya >150 satır, LF, 16 KiB sınırlı görünüm ve her tamamlanan komutta ham kayıt seçildi; ADR-003 tam satır istisnası onaylandı. Windows atomikliği ve I/O hata davranışı sınanmalı. [Paket (c)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2 |
+| Ortak API | Driver, loop ve types sorumlulukları seçildi; kesin async imzalar, hata tipleri, config ve ferrocord uyumu doğrulanmalı. [Paket (e)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2 |
+| LLM | Chat Completions SSE, ortam anahtarı ve retry politikası seçildi; sağlayıcı/model uyumu ve kısmi akış sınanmalı. [Paket (d)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2 |
+| Bütçe | Zorunlu usage eksikliğinde duruş ve yapılandırılabilir başlangıç limitleri seçildi; fiyatlar, süreç ağacı ve iptal doğrulanmalı. [Paket (d)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2 |
+| JSONL | UUIDv7, tek yazar, altı alan ve her tur sync seçildi; dayanıklılık ve kısmi satır davranışı sınanmalı. [Paket (f)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2–3 |
+| RLM | Sıfır girintili tek eylem, iki düzeltme ve ilk 20 scratch girdisi seçildi; model uyumu ve canlı başlık sorgusu doğrulanmalı. [Paket (g)](phase2-contract-proposals.md#faz-2-karar-paketi). | 2 |
 | Spawn | Kimlik doğrulama/izinler, taşıma protokolü, derinlik ve kota değerleri, hata ve iptal yayılımı | 3 |
 | Eklenti | MCP sürümü/taşıması, WASM motoru seçimi, dosya/ağ yetkileri, dış bağımlılıklar | 4 |
 | İleri döngüler | Doğrulama tekrar sınırı, MCTS skor formülü, FSM hata geçişleri ve ambient kaynak sınırları | 4–5+ |

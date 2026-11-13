@@ -1,0 +1,8 @@
+[package]
+name = "ferrocore-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+serde_json = "1"

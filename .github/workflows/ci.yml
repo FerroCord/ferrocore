@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check Bash
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash --version
+      - name: Check PowerShell
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh.exe -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion'
+      - run: cargo test --workspace
+      - run: cargo build --release
